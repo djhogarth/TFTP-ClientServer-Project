@@ -1,0 +1,216 @@
+/*
+  FILENAME - Client.java
+  ASSIGNMENT - Assignment 1 - SYSC 3303
+  AUTHOR - Alex Viman (100967379)
+  DETAILS - A program that will generate five RRQ, five WRQ, and one ERROR datagram packets and sends them to IntHost.java
+*/
+
+/*  FLOW
+    c1 - form message
+    c2 - create datagram
+    c3 - send datagram
+    s1 - receive datagram
+    s2 - extract message
+    s3 - create datagram
+    s4 - send datagram
+    c4 - receive datagram
+    c5 - extract message
+    c6 - print message
+ */
+
+//HOW TO LAUNCH ALL FILES SIMULTANEOUSLY
+// File -> Import -> Run/Debug -> Launch Configurations -> Next
+// Browse to Assignment1_AlexV/Launch Config -> Select Folder -> Select Assignment1_AlexV.launch -> Check "Overwrite" box -> Finish
+// Run -> Run Configurations -> Launch Group -> Assignment1_AlexV -> Run
+
+import java.io.*;
+import java.net.*;
+import java.nio.charset.Charset;
+
+class Client {
+
+    DatagramPacket sendPacket, receivePacket; // Two datagrams for tx/rx
+    DatagramSocket socket; // Only need one socket since we never tx/rx simultaneously
+
+    //private static final int LOCAL_PORT = 9923;
+    private static final int INTHOST_PORT = 23;
+    //private static final int SERVER_PORT = 9969; //Client doesn't interface with the server directly
+
+    public InetAddress clientIP, intHostIP, serverIP;
+
+    //TFTP OPCODES
+    public enum OPCodes
+    {
+        READ, WRITE, DATA, ACK, ERROR
+    }
+
+    //Used to determine if a packet is inbound or outbound when displaying its text
+    public enum direction
+    {
+        IN, OUT;
+    }
+
+    public Client() {
+
+        try {
+            clientIP = InetAddress.getLocalHost();
+            intHostIP = clientIP;
+        } catch (UnknownHostException he)
+        {
+            he.printStackTrace();
+        }
+
+        try {
+            socket = new DatagramSocket();
+            socket.setSoTimeout(5000); // socket
+        } catch (SocketException se) {
+            se.printStackTrace();
+            System.exit(1);
+        }
+
+    }
+
+    //A function to create FTFP REQUEST headers
+    private static synchronized DatagramPacket makeRequest(String mode, String filename, OPCodes rq, InetAddress ip)
+    {
+        //HEADER ==> OPCODE = 2B | FILENAME | 0x0 | MODE | 0x0
+        byte[] header = new byte[100];
+
+        //OPCODE
+        header[0] = 0;
+        if (rq == Client.OPCodes.READ)
+            header[1] = 1;
+        else if (rq == Client.OPCodes.WRITE)
+            header[1] = 2;
+        else
+            header[1] = 0; //This should never happen.
+
+        //FILENAME
+        byte[] temp = filename.getBytes();
+        int j = 2; //byte placeholder for header
+
+        for (int i = 0; i < filename.getBytes().length; i++)
+        {
+            header[j++] = temp[i];
+        }
+
+        //Add a 0x0
+        header[j++] = 0;
+
+        //MODE
+        temp = mode.getBytes();
+
+        for (int i = 0; i < mode.getBytes().length; i++)
+        {
+            header[j++] = temp[i];
+        }
+
+        //Add a 0x0
+        header[j++] = 0;
+
+        //Write header to sendPacket
+        DatagramPacket packet = new DatagramPacket(header, j, ip, INTHOST_PORT);
+        packet = resizePacket(packet);
+
+        return packet;
+    }
+
+    // Main -> sendReceiveLoop -> newDatagram -> makeRequest -> send
+    public static void main(String args[]) throws Exception {
+
+        Thread.sleep(3000); //Allows INTHOST and SERVER to load first
+        System.out.println("TFTP Client is running.\n");
+        Client c = new Client();
+        sendReceiveLoop(c);
+    }
+
+    //Loops 11 times, creating a new packet each iteration and sending it to IntHost
+    public static void sendReceiveLoop(Client c) throws IOException
+    {
+        for (int i = 0; i < 11; i++)
+        {
+            if (i%2 == 0 && i != 10)
+                c.sendPacket = newDatagram(c.intHostIP, OPCodes.READ);
+            else if (i == 10)
+                c.sendPacket = newDatagram(c.intHostIP, OPCodes.ERROR); //Last packet is "invalid"
+            else
+                c.sendPacket = newDatagram(c.intHostIP, OPCodes.WRITE);
+
+            outputText(c.sendPacket, direction.OUT);
+
+            //Sending Packet to IntHost
+            try {
+                c.socket.send(c.sendPacket);
+            }
+            catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            byte[] receiveData = new byte[100];
+            DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
+            try {
+                c.socket.receive(receivePacket);
+                receivePacket = resizePacket(receivePacket);
+                outputText(receivePacket, direction.IN);
+            }
+            catch (SocketTimeoutException ste)
+            {
+                System.out.println("Did not receive a packet from IntHost");
+            }
+        }
+    }
+
+    //A function to create a new Datagram
+    //Future updates to this code will implement the ability to create other types of TFTP packets
+    public static DatagramPacket newDatagram(InetAddress intHostIP, OPCodes op) throws IOException {
+        String mode = "NETascii";
+        String filename = "README.txt";
+
+        DatagramPacket newPacket = makeRequest(mode, filename, op, intHostIP);
+        return newPacket;
+    }
+
+    //A function that reads the text in each packet and displays its contents in ASCII and BYTES
+    public static void outputText(DatagramPacket packet, direction dir)
+    {
+        if (dir == Client.direction.IN)
+            System.out.println("--Inbound Packet Data from IntHost--");
+        else if (dir == Client.direction.OUT)
+            System.out.println("--Outbound Packet Data to IntHost--");
+
+        //ASCII OUTPUT
+        byte[] data = packet.getData();
+        String ascii = new String(data, Charset.forName("UTF-8"));
+        System.out.println(ascii);
+
+        //BYTE OUTPUT
+        //Confirm output with - https://www.branah.com/ascii-converter
+        for (int j = 0; j < data.length; j++)
+        {
+            System.out.print(data[j]);
+            if (j%1 == 0 && j != 0)
+                System.out.print(" ");
+        }
+        System.out.println("\n-----------------------");
+    }
+
+    //Packets are initialized with 100 Bytes of memory but don't actually use all the space
+    //This function resizes a packet based on the length of its payload, conserving space
+    public static DatagramPacket resizePacket(DatagramPacket packet)
+    {
+        InetSocketAddress temp_add = (InetSocketAddress)packet.getSocketAddress();
+        int port = temp_add.getPort();
+        InetAddress ip = packet.getAddress();
+        int length = packet.getLength();
+
+        byte[] tempData = new byte[length];
+
+        for (int i = 0; i < length; i++)
+        {
+            tempData[i] = packet.getData()[i];
+        }
+
+        DatagramPacket resizedPacket = new DatagramPacket(tempData, tempData.length, ip, port);
+        return resizedPacket;
+    }
+}
