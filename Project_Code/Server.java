@@ -11,10 +11,17 @@ import java.net.*;
 import java.nio.charset.Charset;
 import java.util.Vector;
 
-class Server
+class Server implements Runnable
 {
 
-    private static final int INTHOST_PORT = 69;
+    //private static final int ERRORSIM_PORT = 69;
+    private static final int ERRORSIM_PORT = 9969;
+    private static final int DATA_SIZE = 516;
+
+    private DatagramSocket socket;
+    private DatagramPacket packet;
+    private byte[] rxData, txData;
+    private boolean isListener = false;
 
     //Used to determine if a packet is inbound or outbound when displaying its text
     public enum direction
@@ -22,47 +29,116 @@ class Server
         IN, OUT;
     }
 
-    //Waits to receive packet from ErrorSim.java
-    //Upon receipt, validates the packet, creates a response packet and sends it to ErrorSim.java
-    public static void main(String args[]) throws Exception
+    //Overloaded Constructor
+    //Used to instantiate a LISTENER
+    public Server(int port) throws Exception
     {
-        System.out.println("TFTP Server is running.\n");
-        DatagramSocket intHostSocket = new DatagramSocket();
+        socket = new DatagramSocket();
+
+        if (port == ERRORSIM_PORT)
+            isListener = true;
 
         try {
-            intHostSocket = new DatagramSocket(INTHOST_PORT);
-            intHostSocket.setSoTimeout(5000); // socket
-        } catch (SocketException se) {
+            socket = new DatagramSocket(port);
+            //errorSimSocket.setSoTimeout(5000); // socket
+        }
+        catch (SocketException se)
+        {
             se.printStackTrace();
             System.exit(1);
         }
+    }
 
-        byte[] rxData = new byte[100];
+    //Overloaded Constructor
+    //Used to instantiate a SENDER
+    public Server(DatagramPacket packet) throws Exception
+    {
+        this.txData = new byte[DATA_SIZE];
+        this.socket = new DatagramSocket();
+        this.packet = packet;
+    }
 
-        while(true)
+    //Essentially a pseudo-main method that runs all logic for the threads
+    public synchronized void run()
+    {
+        rxData = new byte[DATA_SIZE];
+
+        //If thread is LISTENER
+        while(isListener)
         {
+            boolean receivedPkt = false;
             DatagramPacket rxPacket = new DatagramPacket(rxData, rxData.length);
 
-            intHostSocket.receive(rxPacket);
+            //Used to ensure that the server receives a real packet
+            while (!receivedPkt) {
+                try {
+                    Thread.sleep(1000);
+                    socket.receive(rxPacket);
+
+                    if (rxPacket == (new DatagramPacket(rxData, rxData.length)))
+                        receivedPkt = false;
+                    else
+                        receivedPkt = true;
+
+                } catch (Exception e) {
+                    System.out.println("failed to receive");
+                    //e.printStackTrace();
+                    //System.exit(1);
+                }
+            }
             rxPacket = resizePacket(rxPacket);
             outputText(rxPacket, direction.IN);
 
+            //Ensures inbound packets are formatted correctly
+            //Once validated, creates a new SENDER thread and runs it
             if (validatePacket(rxPacket)) {
-                outputText(rxPacket, direction.IN);
-                sendReply(rxPacket);
+
+                try {
+                    Thread sendReply = new Thread(new Server(rxPacket), "SENDER");
+                    sendReply.start();
+                    //resetVars();
+                }
+                catch (Exception e)
+                {
+                    System.out.println (e.getStackTrace());
+                }
+
             }
             else {
                 outputText(rxPacket, direction.IN);
                 //System.exit(1);
-                intHostSocket.close();
-                throw new ValidationException("Packet is not valid.");
+                //socket.close();
+                //throw new ValidationException("Packet is not valid.");
             }
+        }
 
+        //If the thread is a SENDER, run this code
+        if (!isListener)
+        {
+            //All sending logic is in sendReply()
+            sendReply(this.packet, this.socket);
+
+            //Close temp socket and thread
+            socket.close();
+            Thread.currentThread().interrupt();
         }
     }
 
+    //Waits to receive packet from ErrorSim.java
+    //Upon receipt, validates the packet, creates a new thread and temp socket, creates a response packet and sends it back to ErrorSim.java
+    public synchronized static void main(String args[]) throws Exception
+    {
+        //Creates a thread that listens to port 69
+        Thread listener = new Thread(new Server(ERRORSIM_PORT), "LISTENER");
+        System.out.println("TFTP Server is running.\n");
+
+        listener.start();
+
+    }
+
     //A function that reads the text in each packet and displays its contents in ASCII and BYTES
-    public static void outputText(DatagramPacket packet, direction dir)
+    //Future iterations will update this function for QUIET/VERBOSE options
+    public synchronized static void outputText(DatagramPacket packet, direction dir)
     {
         if (dir == direction.IN)
             System.out.println("--Inbound Packet Data from ErrorSim--");
@@ -85,7 +161,7 @@ class Server
         System.out.println("\n-----------------------");
     }
 
-    public static boolean validatePacket(DatagramPacket packet)
+    public synchronized static boolean validatePacket(DatagramPacket packet)
     {
         //BYTES [32-126] WILL COUNT AS VALID CHARACTERS
         //ANYTHING ELSE IS "INVALID"
@@ -134,10 +210,11 @@ class Server
         return isValid;
     }
 
-    public static void sendReply(DatagramPacket packet)
+    //packet = packet received from ErrorSim
+    //socket = socket ErrorSim used to send the packet to Server
+    public synchronized void sendReply(DatagramPacket packet, DatagramSocket socket)
     {
-        DatagramSocket tempSocket;
-        byte[] temp = packet.getData();
+        this.txData = packet.getData();
         byte[] response = new byte[4];
 
         //Extract ErrorSim socket's port from packet
@@ -145,17 +222,23 @@ class Server
         int port = temp_add.getPort();
         DatagramPacket txPacket = new DatagramPacket(response, response.length, packet.getAddress(), port);
 
-        if (temp[0] == 0 && temp[1] == 1)       //IF PACKET IS RRQ
+        if (txData[0] == 0 && txData[1] == 1)       //IF PACKET IS RRQ
         {
+            //DATA PACKET
             response[0] = 0;
             response[1] = 3;
+
+            //BLOCK NUMBER
             response[2] = 0;
             response[3] = 1;
         }
-        else if (temp[0] == 0 && temp[1] == 2)  //IF PACKET IS WRQ
+        else if (txData[0] == 0 && txData[1] == 2)  //IF PACKET IS WRQ
         {
+            //ACK PACKET
             response[0] = 0;
             response[1] = 4;
+
+            //BLOCK NUMBER
             response[2] = 0;
             response[3] = 0;
         }
@@ -169,24 +252,17 @@ class Server
         outputText(txPacket, direction.OUT);
 
         try {
-            tempSocket = new DatagramSocket();
-
-            try {
-                tempSocket.send(txPacket);
-                tempSocket.close();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-
-        } catch (SocketException se) {
-            se.printStackTrace();
+            socket.send(txPacket);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
 
     }
 
     //Packets are initialized with 100 Bytes of memory but don't actually use all the space
     //This function resizes a packet based on the length of its payload, conserving space
-    public static DatagramPacket resizePacket(DatagramPacket packet)
+    //**THIS FUNCTION MAY BE DEPRECATED IN FUTURE ITERATIONS**
+    public synchronized static DatagramPacket resizePacket(DatagramPacket packet)
     {
         InetSocketAddress temp_add = (InetSocketAddress)packet.getSocketAddress();
         int port = temp_add.getPort();

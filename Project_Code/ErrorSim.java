@@ -10,8 +10,11 @@ import java.nio.charset.Charset;
 
 class ErrorSim
 {
-    private static final int CLIENT_PORT = 23;
-    private static final int SERVER_PORT = 69;
+    //private static final int CLIENT_PORT = 23;
+    //private static final int SERVER_PORT = 69;
+    private static final int CLIENT_PORT = 9923;
+    private static final int SERVER_PORT = 9969;
+    private static final int DATA_SIZE = 516;
 
     //Used to determine if a packet is inbound or outbound when displaying its text
     public enum direction
@@ -34,11 +37,11 @@ class ErrorSim
         System.out.println("TFTP ErrorSim is running.\n");
         DatagramSocket clientSocket = new DatagramSocket();
         DatagramSocket serverSocket = new DatagramSocket();
-        serverSocket.setSoTimeout(5000);
+        //serverSocket.setSoTimeout(5000);
 
         try {
             clientSocket = new DatagramSocket(CLIENT_PORT);
-            clientSocket.setSoTimeout(5000);
+            //clientSocket.setSoTimeout(5000);
         } catch (SocketException se) {
             se.printStackTrace();
             System.exit(1);
@@ -51,7 +54,7 @@ class ErrorSim
             System.exit(1);
         }
 
-        byte[] rxData = new byte[100];
+        byte[] rxData = new byte[DATA_SIZE];
 
         while(true)
         {

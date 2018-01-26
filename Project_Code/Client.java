@@ -32,11 +32,11 @@ class Client {
     DatagramPacket txPacket, rxPacket; // Two datagrams for tx/rx
     DatagramSocket socket; // Only need one socket since we never tx/rx simultaneously
 
-    //private static final int LOCAL_PORT = 9923;
-    private static final int INTHOST_PORT = 23;
-    //private static final int SERVER_PORT = 9969; //Client doesn't interface with the server directly
+    //private static final int ERRORSIM_PORT = 23;
+    private static final int ERRORSIM_PORT = 9923;
+    private static final int DATA_SIZE = 516;
 
-    public InetAddress clientIP, intHostIP, serverIP;
+    public InetAddress clientIP, errorSimIP, serverIP;
 
     //TFTP OPCODES
     public enum OPCodes
@@ -54,7 +54,7 @@ class Client {
 
         try {
             clientIP = InetAddress.getLocalHost();
-            intHostIP = clientIP;
+            errorSimIP = clientIP;
         } catch (UnknownHostException he)
         {
             he.printStackTrace();
@@ -62,7 +62,7 @@ class Client {
 
         try {
             socket = new DatagramSocket();
-            socket.setSoTimeout(5000); // socket
+            //socket.setSoTimeout(5000); // socket
         } catch (SocketException se) {
             se.printStackTrace();
             System.exit(1);
@@ -74,7 +74,7 @@ class Client {
     private static synchronized DatagramPacket makeRequest(String mode, String filename, OPCodes rq, InetAddress ip)
     {
         //HEADER ==> OPCODE = 2B | FILENAME | 0x0 | MODE | 0x0
-        byte[] header = new byte[100];
+        byte[] header = new byte[DATA_SIZE];
 
         //OPCODE
         header[0] = 0;
@@ -109,7 +109,7 @@ class Client {
         header[j++] = 0;
 
         //Write header to txPacket
-        DatagramPacket packet = new DatagramPacket(header, j, ip, INTHOST_PORT);
+        DatagramPacket packet = new DatagramPacket(header, j, ip, ERRORSIM_PORT);
         packet = resizePacket(packet);
 
         return packet;
@@ -130,11 +130,11 @@ class Client {
         for (int i = 0; i < 11; i++)
         {
             if (i%2 == 0 && i != 10)
-                c.txPacket = newDatagram(c.intHostIP, OPCodes.READ);
+                c.txPacket = newDatagram(c.errorSimIP, OPCodes.READ);
             else if (i == 10)
-                c.txPacket = newDatagram(c.intHostIP, OPCodes.ERROR); //Last packet is "invalid"
+                c.txPacket = newDatagram(c.errorSimIP, OPCodes.ERROR); //Last packet is "invalid"
             else
-                c.txPacket = newDatagram(c.intHostIP, OPCodes.WRITE);
+                c.txPacket = newDatagram(c.errorSimIP, OPCodes.WRITE);
 
             outputText(c.txPacket, direction.OUT);
 
@@ -146,7 +146,7 @@ class Client {
                 e.printStackTrace();
             }
 
-            byte[] receiveData = new byte[100];
+            byte[] receiveData = new byte[DATA_SIZE];
             DatagramPacket rxPacket = new DatagramPacket(receiveData, receiveData.length);
             try {
                 c.socket.receive(rxPacket);
@@ -162,11 +162,11 @@ class Client {
 
     //A function to create a new Datagram
     //Future updates to this code will implement the ability to create other types of TFTP packets
-    public static DatagramPacket newDatagram(InetAddress intHostIP, OPCodes op) throws IOException {
+    public static DatagramPacket newDatagram(InetAddress errorSimIP, OPCodes op) throws IOException {
         String mode = "NETascii";
         String filename = "README.txt";
 
-        DatagramPacket newPacket = makeRequest(mode, filename, op, intHostIP);
+        DatagramPacket newPacket = makeRequest(mode, filename, op, errorSimIP);
         return newPacket;
     }
 
