@@ -221,6 +221,7 @@ class Client {
         	//create and send DATA packet
 	        txPacket = new DatagramPacket(sendData,sendData.length,InetAddress.getLocalHost(),port);
 	        this.socket.send(this.txPacket);
+	        txPacket = resizePacket(txPacket);
 	        outputText(txPacket, direction.OUT);
 	        
 	        //stop if sent DATA is less then 512 bytes

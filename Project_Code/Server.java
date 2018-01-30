@@ -326,6 +326,7 @@ class Server implements Runnable
 	        //send DATA packet to client
 	        DatagramPacket txPacket = new DatagramPacket(sendData,sendData.length,InetAddress.getLocalHost(),port);
 	        readSocket.send(txPacket);
+	        txPacket = resizePacket(txPacket);
 	        outputText(txPacket, direction.OUT);
 	        
 	        //stop if sent DATA is less then 512 byte
