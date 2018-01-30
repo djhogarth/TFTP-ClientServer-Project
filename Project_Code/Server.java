@@ -6,9 +6,9 @@
           - Based on the packet type, sends a response to IntHost
 */
 
-import javax.xml.bind.ValidationException;
 import java.net.*;
 import java.nio.charset.Charset;
+import java.util.Arrays;
 import java.util.Vector;
 
 class Server implements Runnable
@@ -123,7 +123,7 @@ class Server implements Runnable
             Thread.currentThread().interrupt();
         }
     }
-
+    
     //Waits to receive packet from ErrorSim.java
     //Upon receipt, validates the packet, creates a new thread and temp socket, creates a response packet and sends it back to ErrorSim.java
     public synchronized static void main(String args[]) throws Exception
@@ -214,33 +214,40 @@ class Server implements Runnable
     //socket = socket ErrorSim used to send the packet to Server
     public synchronized void sendReply(DatagramPacket packet, DatagramSocket socket)
     {
-        this.txData = packet.getData();
+        byte[] data = packet.getData();
         byte[] response = new byte[4];
-
+        String filename;
+        
+        //Extract filename from packet
+        int i=2;
+        while(data[i]!=0) {
+        	i++;
+        }
+        filename = new String(Arrays.copyOfRange(data, 2, i-1) , Charset.forName("UTF-8"));
+        
+        
         //Extract ErrorSim socket's port from packet
         InetSocketAddress temp_add = (InetSocketAddress)packet.getSocketAddress();
         int port = temp_add.getPort();
         DatagramPacket txPacket = new DatagramPacket(response, response.length, packet.getAddress(), port);
-
+        
         if (txData[0] == 0 && txData[1] == 1)       //IF PACKET IS RRQ
         {
-            //DATA PACKET
-            response[0] = 0;
-            response[1] = 3;
-
-            //BLOCK NUMBER
-            response[2] = 0;
-            response[3] = 1;
+            try {
+				this.readRequest(port, filename);
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
         }
         else if (txData[0] == 0 && txData[1] == 2)  //IF PACKET IS WRQ
         {
-            //ACK PACKET
-            response[0] = 0;
-            response[1] = 4;
-
-            //BLOCK NUMBER
-            response[2] = 0;
-            response[3] = 0;
+            try {
+				this.writeRequest(port, filename);
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
         }
         else {                                //SEND 0x0000
             response[0] = 0;
@@ -258,7 +265,90 @@ class Server implements Runnable
         }
 
     }
-
+    
+    //A function that implements the WRQ of a TFTP server, takes as input the client's port and file name of requested file
+    public synchronized void writeRequest(int port,String filename) throws Exception {
+    	boolean isValidFile = true;
+    	byte[] file;
+    	DatagramSocket writeSocket = new DatagramSocket();//new socket for WRQ
+    	byte[] sendData = new byte[]{0,4,0,0};//block 0 ACK packet
+    	
+    	while(isValidFile) {//Loop to send ACK and receive DATA until DATA<512 bytes
+    		//send ACK packet to Client
+	        DatagramPacket txPacket = new DatagramPacket(sendData,sendData.length,InetAddress.getLocalHost(),port);
+	        writeSocket.send(txPacket);
+	        outputText(txPacket, direction.OUT);
+	        
+	        //receive DATA packet from Client
+	        byte[] receiveData = new byte[DATA_SIZE];
+	    	DatagramPacket rxPacket = new DatagramPacket(receiveData, receiveData.length);
+            writeSocket.receive(rxPacket);
+            rxPacket = resizePacket(rxPacket);
+            outputText(rxPacket, direction.IN);
+            
+            
+            
+            //buffer/write file data here
+            
+            
+            
+            //set Data of next ACK packet with received block #
+            sendData = new byte[]{0,4,receiveData[2],receiveData[3]};
+            
+	        //stop if received DATA packet is less then 512 bytes
+	        if (rxPacket.getLength()<DATA_SIZE) isValidFile = false;
+    	}
+    	writeSocket.close();
+    }
+    
+    //A function that implements the RRQ of a TFTP server, takes as input the client's port and file name of requested file
+    public synchronized void readRequest(int port,String filename) throws Exception {
+    	boolean isValidFile = true;
+    	byte[] file;
+    	int blockNum=1;
+    	DatagramSocket readSocket = new DatagramSocket();//new socket for RRQ
+    	
+    	while(isValidFile) {//Loop to send DATA and receive ACK until DATA<512 bytes
+    		byte[] blockNumBytes= blockNumToBytes(blockNum++);
+	        byte[] sendData = new byte[DATA_SIZE];
+	        sendData[0]=0;
+	        sendData[1]=3;
+	        sendData[2]=blockNumBytes[0];
+	        sendData[3]=blockNumBytes[1];
+	        
+	        //buffer file data here
+	        
+	        //set data in packet here
+	        for (int i=4;i<516;i++) {//4-515 are for 512 bytes of data
+	        	sendData[i]=0;
+	        }
+	        
+	        //send DATA packet to client
+	        DatagramPacket txPacket = new DatagramPacket(sendData,sendData.length,InetAddress.getLocalHost(),port);
+	        readSocket.send(txPacket);
+	        outputText(txPacket, direction.OUT);
+	        
+	        //stop if sent DATA is less then 512 byte
+	        if (txPacket.getLength()<DATA_SIZE) isValidFile = false;
+	        else {
+		        //receive ACK packet from client, nothing is done with it yet
+		        byte[] receiveData = new byte[4];
+		    	DatagramPacket rxPacket = new DatagramPacket(receiveData, receiveData.length);
+	            readSocket.receive(rxPacket);
+	            rxPacket = resizePacket(rxPacket);
+	            outputText(rxPacket, direction.IN);
+	        }            
+    	}
+    	readSocket.close();
+    }
+    
+    //A function to convert an int into an array of 2 bytes
+    public static byte[] blockNumToBytes(int blockNum) {
+        int b1 = blockNum / 256;
+        int b2 = blockNum % 256;
+    	return new byte[] {(byte)b1,(byte)b2};
+    }
+    
     //Packets are initialized with 100 Bytes of memory but don't actually use all the space
     //This function resizes a packet based on the length of its payload, conserving space
     //**THIS FUNCTION MAY BE DEPRECATED IN FUTURE ITERATIONS**

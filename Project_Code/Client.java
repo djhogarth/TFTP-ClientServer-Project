@@ -159,7 +159,82 @@ class Client {
             }
         }
     }
-
+    
+    //A function that implements the RRQ of TFTP client, takes as input the port that the server uses for handling requests and name of the requested file
+    public synchronized void readRequest(int port,String filename) throws Exception {
+    	boolean isValidFile = true;
+    	byte[] file;
+    	
+    	while(isValidFile) {//Loop to receive DATA and send ACK until received DATA<512 bytes
+	    	//receive and create DATA
+    		byte[] receiveData = new byte[DATA_SIZE];
+	    	rxPacket = new DatagramPacket(receiveData, receiveData.length);
+            this.socket.receive(rxPacket);
+            rxPacket = resizePacket(rxPacket);
+            outputText(rxPacket, direction.IN);
+	        
+            
+	        //buffer/read file data here
+	        
+            
+	        //stop if received packet does not have DATA opcode or DATA is less then 512 bytes
+	        if (receiveData[1]!=3||rxPacket.getLength()<DATA_SIZE) isValidFile = false;
+	        else {
+	        	//create and send Ack packet with block # of received packet
+		        byte[] sendData = new byte[]{0,4,receiveData[2],receiveData[3]};
+		        txPacket = new DatagramPacket(sendData,sendData.length,InetAddress.getLocalHost(),port);
+		        this.socket.send(this.txPacket);
+		        outputText(txPacket, direction.OUT);
+	        }
+    	}
+    }
+    
+  //A function that implements the WRQ of TFTP client, takes as input the port that the server uses for handling requests and name of the requested file
+    public synchronized void writeRequest(int port,String filename) throws IOException {
+    	boolean isValidFile = true;
+    	byte[] file;
+    	int blockNum=1;
+    	
+    	while(isValidFile) {//Loop to receive ACK and send DATA until sent DATA<512 bytes
+    		//create and receive ACK
+	    	byte[] receiveData = new byte[4]; 
+	    	rxPacket = new DatagramPacket(receiveData, receiveData.length);
+            this.socket.receive(rxPacket);
+            rxPacket = resizePacket(rxPacket);
+            outputText(rxPacket, direction.IN);
+            
+            //create send DATA
+	        byte[] blockNumBytes= blockNumToBytes(blockNum++);
+	        byte[] sendData = new byte[DATA_SIZE];
+	        sendData[0]=0;
+	        sendData[1]=3;
+	        sendData[2]=blockNumBytes[0];
+	        sendData[3]=blockNumBytes[1];
+	        
+	        //buffer file data here
+	        
+	        //set data in DATA packet here
+	        for (int i=4;i<516;i++) {//4-515 are for 512 bytes of data
+	        	sendData[i]=0;
+	        }
+	        
+        	//create and send DATA packet
+	        txPacket = new DatagramPacket(sendData,sendData.length,InetAddress.getLocalHost(),port);
+	        this.socket.send(this.txPacket);
+	        outputText(txPacket, direction.OUT);
+	        
+	        //stop if sent DATA is less then 512 bytes
+	        if (txPacket.getLength()<DATA_SIZE) isValidFile = false;
+    	}	
+    }
+    
+    //A function to convert an int into an array of 2 bytes
+    public static byte[] blockNumToBytes(int blockNum) {
+        int b1 = blockNum / 256;
+        int b2 = blockNum % 256;
+    	return new byte[] {(byte)b1,(byte)b2};
+    }
+    
     //A function to create a new Datagram
     //Future updates to this code will implement the ability to create other types of TFTP packets
     public static DatagramPacket newDatagram(InetAddress errorSimIP, OPCodes op) throws IOException {
