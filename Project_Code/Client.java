@@ -26,6 +26,8 @@
 import java.io.*;
 import java.net.*;
 import java.nio.charset.Charset;
+import java.util.Scanner;
+
 
 class Client {
 
@@ -37,6 +39,7 @@ class Client {
     private static final int DATA_SIZE = 516;
 
     public InetAddress clientIP, errorSimIP, serverIP;
+    public String pathName, FileName, Operation, continueOrQuit;
 
     //TFTP OPCODES
     public enum OPCodes
@@ -123,28 +126,84 @@ class Client {
         Client c = new Client();
         sendReceiveLoop(c);
     }
+    
+    // gets file path, file name and operation (read/write) from the user
+    public void userInput(Client c) throws IOException {
+    	
+    Scanner reader = new Scanner(System.in);  // Reading from System.in
+    System.out.println("Enter file name: ");
+    c.FileName = reader.nextLine(); // Scans the next token of the input as an int.
 
-    //Loops 11 times, creating a new packet each iteration and sending it to ErrorSim
+    System.out.println("Enter file path: ");
+    c.pathName = reader.nextLine();
+
+    System.out.println("Is it a read or write?: ");
+    c.Operation = reader.nextLine();
+    
+    System.out.println("If this is the last file, enter 'q'.  ");
+     c.continueOrQuit= reader.nextLine();
+
+    reader.close(); 
+
+    if((c.Operation).equals("write"))
+    c.txPacket = newDatagram(c.errorSimIP, OPCodes.WRITE);
+
+    if((c.Operation).equals("read"))
+    c.txPacket = newDatagram(c.errorSimIP, OPCodes.READ);
+
+    File file = new File(c.pathName);
+    		FileInputStream filee = null;
+    		   				
+    		
+    		try {
+    			filee = new FileInputStream(file);
+    			byte[] data = new byte[(int) file.length()];   			
+    			filee.read(data); //read file into bytes[]
+    						
+    			System.out.println("File was successfully read in : ");
+    			/*String s = new String(data);
+    			 System.out.println("File content: " + s);
+				*/
+    			
+    		}
+    			catch (FileNotFoundException e) {
+    				 System.out.println("File not found" + e);
+    			}
+    			
+    		catch (IOException e) {
+    			e.printStackTrace();
+    		} finally {
+    			try {
+    				if (filee != null)
+    					filee.close();
+    			} catch (IOException ex) {
+    				ex.printStackTrace();
+    			}
+    		}
+    		 
+    		 
+    	}
+
+   //create a new packet each user input and sending it to ErrorSim
     public static void sendReceiveLoop(Client c) throws IOException
+    
     {
-        for (int i = 0; i < 11; i++)
-        {
-            if (i%2 == 0 && i != 10)
-                c.txPacket = newDatagram(c.errorSimIP, OPCodes.READ);
-            else if (i == 10)
-                c.txPacket = newDatagram(c.errorSimIP, OPCodes.ERROR); //Last packet is "invalid"
-            else
-                c.txPacket = newDatagram(c.errorSimIP, OPCodes.WRITE);
+    	 
+    	while(true) {
+    		
+    	c.userInput(c);
+    	
+        outputText(c.txPacket, direction.OUT);
+        
+       
+        //Sending Packet to ErrortHost
+        try {
+            c.socket.send(c.txPacket);
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
 
-            outputText(c.txPacket, direction.OUT);
-
-            //Sending Packet to ErrorSim
-            try {
-                c.socket.send(c.txPacket);
-            }
-            catch (Exception e) {
-                e.printStackTrace();
-            }
 
             byte[] receiveData = new byte[DATA_SIZE];
             DatagramPacket rxPacket = new DatagramPacket(receiveData, receiveData.length);
@@ -157,8 +216,12 @@ class Client {
             {
                 System.out.println("Did not receive a packet from ErrorSim");
             }
-        }
-    }
+            
+            if((c.continueOrQuit).equals("q"))
+            	break;
+    	}
+      }
+    
     
     //A function that implements the RRQ of TFTP client, takes as input the port that the server uses for handling requests and name of the requested file
     public synchronized void readRequest(int port,String filename) throws Exception {
@@ -187,6 +250,7 @@ class Client {
 		        outputText(txPacket, direction.OUT);
 	        }
     	}
+    	
     }
     
   //A function that implements the WRQ of TFTP client, takes as input the port that the server uses for handling requests and name of the requested file
