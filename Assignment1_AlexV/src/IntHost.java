@@ -19,7 +19,7 @@ class IntHost
         IN, OUT;
     }
 
-    //Used to detemine which host sent a packet to IntHost
+    //Used to determine which host sent a packet to IntHost
     public enum endhost
     {
         CLIENT, SERVER;

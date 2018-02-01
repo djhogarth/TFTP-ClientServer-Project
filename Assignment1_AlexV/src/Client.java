@@ -26,6 +26,7 @@
 import java.io.*;
 import java.net.*;
 import java.nio.charset.Charset;
+import java.util.Scanner;
 
 class Client {
 
@@ -37,6 +38,7 @@ class Client {
     //private static final int SERVER_PORT = 9969; //Client doesn't interface with the server directly
 
     public InetAddress clientIP, intHostIP, serverIP;
+    public String pathName, FileName, Operation;
 
     //TFTP OPCODES
     public enum OPCodes
@@ -75,7 +77,7 @@ class Client {
     {
         //HEADER ==> OPCODE = 2B | FILENAME | 0x0 | MODE | 0x0
         byte[] header = new byte[100];
-
+        
         //OPCODE
         header[0] = 0;
         if (rq == Client.OPCodes.READ)
@@ -123,21 +125,68 @@ class Client {
         Client c = new Client();
         sendReceiveLoop(c);
     }
+    
+    public void userInput(Client c) throws IOException
+    {
+    Scanner reader = new Scanner(System.in);  // Reading from System.in
+    System.out.println("Enter file name: ");
+    c.FileName = reader.nextLine(); // Scans the next token of the input as an int.
+
+    System.out.println("Enter file path: ");
+    c.pathName = reader.nextLine();
+
+    System.out.println("Is it a read or write?: ");
+    c.Operation = reader.nextLine();
+
+    reader.close(); 
+
+    if((c.Operation).equals("write"))
+    c.sendPacket = newDatagram(c.intHostIP, OPCodes.WRITE);
+
+    if((c.Operation).equals("read"))
+    c.sendPacket = newDatagram(c.intHostIP, OPCodes.READ);
+
+    File file = new File(c.pathName);
+    		FileInputStream filee = null;
+    		   				
+    		
+    		try {
+    			filee = new FileInputStream(file);
+    			byte[] data = new byte[(int) file.length()];   			
+    			filee.read(data); //read file into bytes[]
+    						
+    			System.out.println("File was successfully read in : ");
+    			/*String s = new String(data);
+    			 System.out.println("File content: " + s);
+				*/
+    			
+    		}
+    			catch (FileNotFoundException e) {
+    				 System.out.println("File not found" + e);
+    			}
+    			
+    		catch (IOException e) {
+    			e.printStackTrace();
+    		} finally {
+    			try {
+    				if (filee != null)
+    					filee.close();
+    			} catch (IOException ex) {
+    				ex.printStackTrace();
+    			}
+    		}
+    		 
+    		 
+    	}
 
     //Loops 11 times, creating a new packet each iteration and sending it to IntHost
     public static void sendReceiveLoop(Client c) throws IOException
     {
-        for (int i = 0; i < 11; i++)
-        {
-            if (i%2 == 0 && i != 10)
-                c.sendPacket = newDatagram(c.intHostIP, OPCodes.READ);
-            else if (i == 10)
-                c.sendPacket = newDatagram(c.intHostIP, OPCodes.ERROR); //Last packet is "invalid"
-            else
-                c.sendPacket = newDatagram(c.intHostIP, OPCodes.WRITE);
-
+    	 
+    		c.userInput(c);
             outputText(c.sendPacket, direction.OUT);
-
+            
+           
             //Sending Packet to IntHost
             try {
                 c.socket.send(c.sendPacket);
@@ -146,19 +195,22 @@ class Client {
                 e.printStackTrace();
             }
 
-            byte[] receiveData = new byte[100];
+           
+            byte[] receiveData = new byte[516]; 
             DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
             try {
+            	System.out.println("done");
                 c.socket.receive(receivePacket);
                 receivePacket = resizePacket(receivePacket);
                 outputText(receivePacket, direction.IN);
+                
             }
             catch (SocketTimeoutException ste)
             {
                 System.out.println("Did not receive a packet from IntHost");
             }
         }
-    }
+    
 
     //A function to create a new Datagram
     //Future updates to this code will implement the ability to create other types of TFTP packets
@@ -191,6 +243,7 @@ class Client {
             if (j%1 == 0 && j != 0)
                 System.out.print(" ");
         }
+        
         System.out.println("\n-----------------------");
     }
 

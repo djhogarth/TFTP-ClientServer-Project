@@ -6,7 +6,7 @@
           - Based on the packet type, sends a response to IntHost
 */
 
-import javax.xml.bind.ValidationException;
+
 import java.net.*;
 import java.nio.charset.Charset;
 import java.util.Vector;
@@ -55,7 +55,7 @@ class Server
                 outputText(rxPacket, direction.IN);
                 //System.exit(1);
                 intHostSocket.close();
-                throw new ValidationException("Packet is not valid.");
+               
             }
 
         }
