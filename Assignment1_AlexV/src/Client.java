@@ -128,17 +128,17 @@ class Client {
     
     public void userInput(Client c) throws IOException
     {
-    Scanner reader = new Scanner(System.in);  // Reading from System.in
-    System.out.println("Enter file name: ");
-    c.FileName = reader.nextLine(); // Scans the next token of the input as an int.
-
-    System.out.println("Enter file path: ");
-    c.pathName = reader.nextLine();
-
-    System.out.println("Is it a read or write?: ");
-    c.Operation = reader.nextLine();
-
-    reader.close(); 
+    //Scanner reader = new Scanner(System.in);  // Reading from System.in
+    //System.out.println("Enter file name: ");
+    //c.FileName = reader.nextLine(); // Scans the next token of the input as an int.
+    c.FileName = "test.txt";
+    //System.out.println("Enter file path: ");
+    //c.pathName = reader.nextLine();
+    c.pathName = "C:\\Users\\Dariy\\Documents\\test.txt\n" ;
+   // System.out.println("Is it a read or write?: ");
+    //c.Operation = reader.nextLine();
+c.Operation = "read";
+    //reader.close(); 
 
     if((c.Operation).equals("write"))
     c.sendPacket = newDatagram(c.intHostIP, OPCodes.WRITE);
