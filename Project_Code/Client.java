@@ -143,13 +143,13 @@ class Client {
     System.out.println("If this is the last file, enter 'q'.  ");
      c.continueOrQuit= reader.nextLine();
 
-    reader.close(); 
+   
 
     if((c.Operation).equals("write"))
-    c.txPacket = newDatagram(c.errorSimIP, OPCodes.WRITE);
+    c.txPacket = newDatagram(c.FileName, c.errorSimIP, OPCodes.WRITE);
 
     if((c.Operation).equals("read"))
-    c.txPacket = newDatagram(c.errorSimIP, OPCodes.READ);
+    c.txPacket = newDatagram(c.FileName ,c.errorSimIP, OPCodes.READ);
 
     File file = new File(c.pathName);
     		FileInputStream filee = null;
@@ -302,10 +302,9 @@ class Client {
     
     //A function to create a new Datagram
     //Future updates to this code will implement the ability to create other types of TFTP packets
-    public static DatagramPacket newDatagram(InetAddress errorSimIP, OPCodes op) throws IOException {
+    public static DatagramPacket newDatagram(String filename,InetAddress errorSimIP, OPCodes op) throws IOException {
         String mode = "NETascii";
-        String filename = "README.txt";
-
+        
         DatagramPacket newPacket = makeRequest(mode, filename, op, errorSimIP);
         return newPacket;
     }
