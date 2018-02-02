@@ -44,6 +44,7 @@ import java.io.*;
 import java.net.*;
 import java.nio.charset.Charset;
 import java.util.Scanner;
+import java.util.Vector;
 
 
 class Client {
@@ -57,6 +58,7 @@ class Client {
 
     public InetAddress clientIP, errorSimIP, serverIP;
     public String pathname, filename, operation, continueOrQuit;
+    public Vector<byte[]> receivedFile;
 
     //TFTP OPCODES
     public enum OPCodes {
@@ -157,6 +159,13 @@ class Client {
         return packet;
     }
 
+    //private static synchronized DatagramPacket makeACK(OPCodes rq, InetAddress ip) {
+
+
+    //}
+
+
+
     // gets file path, file name and operation (read/write) from the user
     public static void userInput(Client c) throws IOException {
 
@@ -188,6 +197,12 @@ class Client {
             if ((c.operation).equals("read") || c.operation.equals("r")) {
                 System.out.println("Creating a RRQ Packet");
                 c.txPacket = newDatagram(c.errorSimIP, OPCodes.READ, c.filename);
+                try {
+                    c.socket.send(c.txPacket);
+                    c.receivedFile = c.readRequest(getPort(c.txPacket));
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
 
             File file = new File(c.pathname);
@@ -225,11 +240,7 @@ class Client {
 
             //Sending Packet to ErrortHost
 
-            try {
-                c.socket.send(c.txPacket);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+
 
             byte[] receiveData = new byte[DATA_SIZE];
             DatagramPacket rxPacket = new DatagramPacket(receiveData, receiveData.length);
@@ -265,36 +276,62 @@ class Client {
     }
 
 
-    //NEVER CALLED
-    //A function that implements the RRQ of TFTP client, takes as input the port that the server uses for handling requests and name of the requested file
-    public synchronized void readRequest(int port, String filename) throws Exception {
-        boolean isValidFile = true;
-        byte[] file;
+    /*
+       RRQ FLOW
+       Client -> RRQ -> Server
+       Server -> DATA BLK 1 -> Client
+       Client -> ACK BLK 1 -> Server
+       Repeats until Server sends last DATA pkt, Client sends a final ACK
+     */
 
-        while (isValidFile) {//Loop to receive DATA and send ACK until received DATA<512 bytes
+    //A function that implements the RRQ of TFTP client, takes as input the port that the server uses for handling requests and name of the requested file
+    //isValidPkt is used to validate if received packet is a DATA packet
+    //buffer is used to temporarily store the byte array from the received DATA packet
+    //receivedFile is a vector that stores all byte[] for a file stream; this will be converted back to a file later
+    public synchronized Vector<byte[]> readRequest(int port) throws Exception {
+        boolean isValidPkt = true;
+
+
+        while (isValidPkt) {//Loop to receive DATA and send ACK until received DATA<512 bytes
             //receive and create DATA
             byte[] receiveData = new byte[DATA_SIZE];
             rxPacket = new DatagramPacket(receiveData, receiveData.length);
             this.socket.receive(rxPacket);
             rxPacket = resizePacket(rxPacket);
             outputText(rxPacket, direction.IN);
+            byte[] buffer = new byte[rxPacket.getLength()];
 
+            for (int i = 4; i < rxPacket.getLength(); i++)
+                buffer[i - 4] = rxPacket.getData()[i];
 
+            //receivedFile.addElement(buffer);
             //buffer/read file data here
 
 
             //stop if received packet does not have DATA opcode or DATA is less then 512 bytes
-            if (receiveData[1] != 3 || rxPacket.getLength() < DATA_SIZE) isValidFile = false;
+            if (receiveData[1] != 3) isValidPkt = false;
             else {
                 //create and send Ack packet with block # of received packet
                 byte[] sendData = new byte[]{0, 4, receiveData[2], receiveData[3]};
                 txPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getLocalHost(), port);
                 this.socket.send(this.txPacket);
                 outputText(txPacket, direction.OUT);
+
+                if (rxPacket.getLength() < DATA_SIZE) isValidPkt = false;
             }
         }
 
+        return receivedFile;
     }
+
+    /*
+       WRQ FLOW
+       Client -> WRQ -> Server
+       Server -> ACK BLK 0 -> Client
+       Client -> DATA BLK 1 -> Server
+       Server -> ACK BLK 1 -> Client
+       Repeats until Client sends last DATA pkt, Server sends a final ACK
+     */
 
     //NEVER CALLED
     //A function that implements the WRQ of TFTP client, takes as input the port that the server uses for handling requests and name of the requested file
@@ -369,8 +406,7 @@ class Client {
     //Packets are initialized with 100 Bytes of memory but don't actually use all the space
     //This function resizes a packet based on the length of its payload, conserving space
     public static DatagramPacket resizePacket(DatagramPacket packet) {
-        InetSocketAddress temp_add = (InetSocketAddress) packet.getSocketAddress();
-        int port = temp_add.getPort();
+        int port = getPort(packet);
         InetAddress ip = packet.getAddress();
         int length = packet.getLength();
 
@@ -382,6 +418,13 @@ class Client {
 
         DatagramPacket resizedPacket = new DatagramPacket(tempData, tempData.length, ip, port);
         return resizedPacket;
+    }
+
+    public static int getPort(DatagramPacket p)
+    {
+        InetSocketAddress temp_add = (InetSocketAddress) p.getSocketAddress();
+        int port = temp_add.getPort();
+        return port;
     }
 }
 

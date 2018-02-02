@@ -78,14 +78,13 @@ class ErrorSim
 
                 //Receive from SERVER
                 serverSocket.receive(rxPacket);
-                rxPacket = resizePacket(rxPacket);
+                //rxPacket = resizePacket(rxPacket);
+                outputText(rxPacket, direction.IN, endhost.SERVER);
 
+                //Send to CLIENT
                 txPacket = rxPacket;
                 txPacket.setPort(client_port);
                 txPacket.setAddress(InetAddress.getLocalHost());
-                outputText(txPacket, direction.IN, endhost.SERVER);
-
-                //Send to CLIENT
                 clientSocket.send(txPacket);
                 outputText(txPacket, direction.OUT, endhost.CLIENT);
             }

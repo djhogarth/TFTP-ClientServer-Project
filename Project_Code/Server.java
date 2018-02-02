@@ -6,10 +6,14 @@
           - Based on the packet type, sends a response to IntHost
 */
 
+import java.io.FileInputStream;
 import java.net.*;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.Vector;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.Path;
 
 class Server implements Runnable
 {
@@ -171,7 +175,8 @@ class Server implements Runnable
 
     public synchronized static boolean validatePacket(DatagramPacket packet)
     {
-        //BYTES [32-126] WILL COUNT AS VALID CHARACTERS
+        //BYTES [9-126] WILL COUNT AS VALID CHARACTERS
+        //BYTE 10 == LF == Line Feed
         //ANYTHING ELSE IS "INVALID"
         boolean isValid = false;
         boolean filenameIsValid = true;
@@ -196,13 +201,13 @@ class Server implements Runnable
             {
                 for (int i = 2; i < hasZero.elementAt(0); i++)
                 {
-                    if ((packet.getData()[i] <= 31 && packet.getData()[i] != 0) || (packet.getData()[i] >= 127))
+                    if ((packet.getData()[i] <= 8 && packet.getData()[i] != 0) || (packet.getData()[i] >= 127))
                         filenameIsValid = false;
                 }
 
                 for (int i = hasZero.elementAt(0) + 1; i < hasZero.elementAt(1); i++)
                 {
-                    if ((packet.getData()[i] <= 31 && packet.getData()[i] != 0) || (packet.getData()[i] >= 127))
+                    if ((packet.getData()[i] <= 8 && packet.getData()[i] != 0) || (packet.getData()[i] >= 127))
                         modeIsValid = false;
                 }
             }
@@ -231,24 +236,23 @@ class Server implements Runnable
         while(data[i]!=0) {
             i++;
         }
-        filename = new String(Arrays.copyOfRange(data, 2, i-1) , Charset.forName("UTF-8"));
-
+        filename = new String(Arrays.copyOfRange(data, 2, i) , Charset.forName("UTF-8"));
 
         //Extract ErrorSim socket's port from packet
         InetSocketAddress temp_add = (InetSocketAddress)packet.getSocketAddress();
         int port = temp_add.getPort();
         DatagramPacket txPacket = new DatagramPacket(response, response.length, packet.getAddress(), port);
 
-        if (txData[0] == 0 && txData[1] == 1)       //IF PACKET IS RRQ
+        if (data[0] == 0 && data[1] == 1)       //IF PACKET IS RRQ
         {
             try {
-                this.readRequest(port, filename);
+                readRequest(port, filename);
             } catch (Exception e) {
                 // TODO Auto-generated catch block
                 e.printStackTrace();
             }
         }
-        else if (txData[0] == 0 && txData[1] == 2)  //IF PACKET IS WRQ
+        else if (data[0] == 0 && data[1] == 2)  //IF PACKET IS WRQ
         {
             try {
                 this.writeRequest(port, filename);
@@ -309,12 +313,26 @@ class Server implements Runnable
         writeSocket.close();
     }
 
+    /*
+       RRQ FLOW
+       Client -> RRQ -> Server
+       Server -> DATA BLK 1 -> Client
+       Client -> ACK BLK 1 -> Server
+       Repeats until Server sends last DATA pkt, Client sends a final ACK
+     */
+
     //A function that implements the RRQ of a TFTP server, takes as input the client's port and file name of requested file
     public synchronized void readRequest(int port,String filename) throws Exception {
         boolean isValidFile = true;
-        byte[] file;
         int blockNum=1;
         DatagramSocket readSocket = new DatagramSocket();//new socket for RRQ
+        //FileInputStream fileInput = new FileInputStream(filename);
+        Path path = Paths.get("./" + filename);
+        byte[] file = Files.readAllBytes(path);
+        int totalBlocksRequired = (file.length / 512) + 1;
+        int remainderLastBlock = (file.length % 512);
+        int currentBlock = 1;
+        boolean onLastBlock = false;
 
         while(isValidFile) {//Loop to send DATA and receive ACK until DATA<512 bytes
             byte[] blockNumBytes= blockNumToBytes(blockNum++);
@@ -326,19 +344,35 @@ class Server implements Runnable
 
             //buffer file data here
 
+            System.out.println("file = " + new String(file, Charset.forName("UTF-8")));
+            System.out.println((file.length / 512) + " " + (file.length % 512));
+            System.out.println(totalBlocksRequired);
+
+            if (totalBlocksRequired == 1 || currentBlock == totalBlocksRequired)
+                onLastBlock = true;
+
             //set data in packet here
-            for (int i=4;i<516;i++) {//4-515 are for 512 bytes of data
-                sendData[i]=0;
+            if (!onLastBlock) {
+                for (int i = 4; i < DATA_SIZE; i++) {//4-515 are for 512 bytes of data
+                    sendData[i] = file[(i - 4) + 512 * (totalBlocksRequired - 1)];
+                }
+                currentBlock++;
             }
+            else
+                for (int i = 4; i < remainderLastBlock; i++) {
+                    sendData[i] = file[(i - 4) + 512 * (totalBlocksRequired - 1)];
+                    //System.out.print("Data" + i + "=" + sendData[i]);
+                }
 
             //send DATA packet to client
             DatagramPacket txPacket = new DatagramPacket(sendData,sendData.length,InetAddress.getLocalHost(),port);
-            readSocket.send(txPacket);
             txPacket = resizePacket(txPacket);
+            readSocket.send(txPacket);
             outputText(txPacket, direction.OUT);
 
             //stop if sent DATA is less then 512 byte
-            if (txPacket.getLength()<DATA_SIZE) isValidFile = false;
+            if (txPacket.getLength()<DATA_SIZE)
+                isValidFile = false;
             else {
                 //receive ACK packet from client, nothing is done with it yet
                 byte[] receiveData = new byte[4];
