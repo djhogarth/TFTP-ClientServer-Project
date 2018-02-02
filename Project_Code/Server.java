@@ -23,9 +23,17 @@ class Server implements Runnable
     private byte[] rxData, txData;
     private boolean isListener = false;
 
+    //TFTP OPCODES
+    public enum OPCodes {
+        READ,   //0x01
+        WRITE,  //0x02
+        DATA,   //0x03
+        ACK,    //0x04
+        ERROR   //0x05
+    }
+
     //Used to determine if a packet is inbound or outbound when displaying its text
-    public enum direction
-    {
+    public enum direction {
         IN, OUT;
     }
 

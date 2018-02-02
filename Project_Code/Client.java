@@ -23,6 +23,22 @@
 // Browse to Assignment1_AlexV/Launch Config -> Select Folder -> Select Assignment1_AlexV.launch -> Check "Overwrite" box -> Finish
 // Run -> Run Configurations -> Launch Group -> Assignment1_AlexV -> Run
 
+
+/*
+       WRQ FLOW
+       Client -> WRQ -> Server
+       Server -> ACK BLK 0 -> Client
+       Client -> DATA BLK 1 -> Server
+       Server -> ACK BLK 1 -> Client
+       Repeats until Client sends last DATA pkt, Server sends a final ACK
+
+       RRQ FLOW
+       Client -> RRQ -> Server
+       Server -> DATA BLK 1 -> Client
+       Client -> ACK BLK 1 -> Server
+       Repeats until Server sends last DATA pkt, Client sends a final ACK
+ */
+
 import java.io.*;
 import java.net.*;
 import java.nio.charset.Charset;
@@ -43,7 +59,25 @@ class Client {
 
     //TFTP OPCODES
     public enum OPCodes {
-        READ, WRITE, DATA, ACK, ERROR
+        READ,   //0x01
+        WRITE,  //0x02
+        DATA,   //0x03
+        ACK,    //0x04
+        ERROR   //0x05
+
+        /*
+        Error Codes
+
+        Value     Meaning
+        0         Not defined, see error message (if any).
+        1         File not found.
+        2         Access violation.
+        3         Disk full or allocation exceeded.
+        4         Illegal TFTP operation.
+        5         Unknown transfer ID.
+        6         File already exists.
+        7         No such user.
+         */
     }
 
     //Used to determine if a packet is inbound or outbound when displaying its text
@@ -190,8 +224,6 @@ class Client {
 
             //Sending Packet to ErrortHost
 
-            outputText(c.txPacket, direction.IN);
-
             try {
                 c.socket.send(c.txPacket);
             } catch (Exception e) {
@@ -204,6 +236,11 @@ class Client {
                 c.socket.receive(rxPacket);
                 rxPacket = resizePacket(rxPacket);
                 outputText(rxPacket, direction.IN);
+
+                //**Working on this later**
+                //If response from Server is
+                //if (rxPacket.getData()[0] == 0 && rxPacket.getData()[0] == 0)
+
             } catch (SocketTimeoutException ste) {
                 System.out.println("Did not receive a packet from ErrorSim");
             }
