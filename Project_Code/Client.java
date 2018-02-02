@@ -143,9 +143,7 @@ class Client {
     System.out.println("If this is the last file, enter 'q'.  ");
      c.continueOrQuit= reader.nextLine();
 
-    reader.close(); 
-
-    if((c.Operation).equals("write"))
+   if((c.Operation).equals("write"))
     c.txPacket = newDatagram(c.errorSimIP, OPCodes.WRITE);
 
     if((c.Operation).equals("read"))
