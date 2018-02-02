@@ -39,17 +39,15 @@ class Client {
     private static final int DATA_SIZE = 516;
 
     public InetAddress clientIP, errorSimIP, serverIP;
-    public String pathName, FileName, Operation, continueOrQuit;
+    public String pathname, filename, operation, continueOrQuit;
 
     //TFTP OPCODES
-    public enum OPCodes
-    {
+    public enum OPCodes {
         READ, WRITE, DATA, ACK, ERROR
     }
 
     //Used to determine if a packet is inbound or outbound when displaying its text
-    public enum direction
-    {
+    public enum direction {
         IN, OUT;
     }
 
@@ -58,8 +56,7 @@ class Client {
         try {
             clientIP = InetAddress.getLocalHost();
             errorSimIP = clientIP;
-        } catch (UnknownHostException he)
-        {
+        } catch (UnknownHostException he) {
             he.printStackTrace();
         }
 
@@ -70,12 +67,21 @@ class Client {
             se.printStackTrace();
             System.exit(1);
         }
-
     }
 
+    // Main -> userInput -> newDatagram -> makeRequest -> send
+    public static void main(String args[]) throws Exception {
+
+        //Thread.sleep(3000); //Allows INTHOST and SERVER to load first
+        System.out.println("TFTP Client is running.\n");
+        Client c = new Client();
+        //sendReceiveLoop(c);
+        userInput(c);
+    }
+
+    //ONLY CALLED BY newDatagram()
     //A function to create FTFP REQUEST headers
-    private static synchronized DatagramPacket makeRequest(String mode, String filename, OPCodes rq, InetAddress ip)
-    {
+    private static synchronized DatagramPacket makeRequest(String mode, String filename, OPCodes rq, InetAddress ip) {
         //HEADER ==> OPCODE = 2B | FILENAME | 0x0 | MODE | 0x0
         byte[] header = new byte[DATA_SIZE];
 
@@ -92,8 +98,7 @@ class Client {
         byte[] temp = filename.getBytes();
         int j = 2; //byte placeholder for header
 
-        for (int i = 0; i < filename.getBytes().length; i++)
-        {
+        for (int i = 0; i < filename.getBytes().length; i++) {
             header[j++] = temp[i];
         }
 
@@ -103,8 +108,7 @@ class Client {
         //MODE
         temp = mode.getBytes();
 
-        for (int i = 0; i < mode.getBytes().length; i++)
-        {
+        for (int i = 0; i < mode.getBytes().length; i++) {
             header[j++] = temp[i];
         }
 
@@ -118,92 +122,81 @@ class Client {
         return packet;
     }
 
-    // Main -> sendReceiveLoop -> newDatagram -> makeRequest -> send
-    public static void main(String args[]) throws Exception {
-
-        Thread.sleep(3000); //Allows INTHOST and SERVER to load first
-        System.out.println("TFTP Client is running.\n");
-        Client c = new Client();
-        sendReceiveLoop(c);
-    }
-    
     // gets file path, file name and operation (read/write) from the user
-    public void userInput(Client c) throws IOException {
-    	
-    Scanner reader = new Scanner(System.in);  // Reading from System.in
-    System.out.println("Enter file name: ");
-    c.FileName = reader.nextLine(); // Scans the next token of the input as an int.
+    public static void userInput(Client c) throws IOException {
 
-    System.out.println("Enter file path: ");
-    c.pathName = reader.nextLine();
+        while (true) {
 
-    System.out.println("Is it a read or write?: ");
-    c.Operation = reader.nextLine();
-    
-    System.out.println("If this is the last file, enter 'q'.  ");
-     c.continueOrQuit= reader.nextLine();
+            System.out.println("Working Directory = " +
+                    System.getProperty("user.dir"));
 
-    reader.close(); 
+            Scanner reader = new Scanner(System.in);  // Reading from System.in
+            System.out.print("Enter file name: ");
+            c.filename = reader.nextLine(); // Scans the next token of the input as an int.
 
-    if((c.Operation).equals("write"))
-    c.txPacket = newDatagram(c.errorSimIP, OPCodes.WRITE);
+            System.out.print("Enter full file path: ");
+            c.pathname = reader.nextLine();
 
-    if((c.Operation).equals("read"))
-    c.txPacket = newDatagram(c.errorSimIP, OPCodes.READ);
+            System.out.print("Is it a (r)ead or (w)rite?: ");
+            c.operation = reader.nextLine();
 
-    File file = new File(c.pathName);
-    		FileInputStream filee = null;
-    		   				
-    		
-    		try {
-    			filee = new FileInputStream(file);
-    			byte[] data = new byte[(int) file.length()];   			
-    			filee.read(data); //read file into bytes[]
-    						
-    			System.out.println("File was successfully read in : ");
-    			/*String s = new String(data);
+            System.out.print("If this is the last file, enter 'q'.  ");
+            c.continueOrQuit = reader.nextLine();
+
+            //reader.close();
+
+            if ((c.operation).equals("write") || (c.operation).equals("w")) {
+                System.out.println("Creating a WRQ Packet");
+                c.txPacket = newDatagram(c.errorSimIP, OPCodes.WRITE, c.filename);
+            }
+
+            if ((c.operation).equals("read") || c.operation.equals("r")) {
+                System.out.println("Creating a RRQ Packet");
+                c.txPacket = newDatagram(c.errorSimIP, OPCodes.READ, c.filename);
+            }
+
+            File file = new File(c.pathname);
+            FileInputStream filee = null;
+
+
+            /*
+            try {
+                filee = new FileInputStream(file);
+                byte[] data = new byte[(int) file.length()];
+                filee.read(data); //read file into bytes[]
+
+                System.out.println("File was successfully read in : ");
+    			/*
+    			String s = new String(data);
     			 System.out.println("File content: " + s);
 				*/
-    			
-    		}
-    			catch (FileNotFoundException e) {
-    				 System.out.println("File not found" + e);
-    			}
-    			
-    		catch (IOException e) {
-    			e.printStackTrace();
-    		} finally {
-    			try {
-    				if (filee != null)
-    					filee.close();
-    			} catch (IOException ex) {
-    				ex.printStackTrace();
-    			}
-    		}
-    		 
-    		 
-    	}
 
-   //create a new packet each user input and sending it to ErrorSim
-    public static void sendReceiveLoop(Client c) throws IOException
-    
-    {
-    	 
-    	while(true) {
-    		
-    	c.userInput(c);
-    	
-        outputText(c.txPacket, direction.OUT);
-        
-       
-        //Sending Packet to ErrortHost
-        try {
-            c.socket.send(c.txPacket);
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-        }
+            /*
+            } catch (FileNotFoundException e) {
+                System.out.println("File not found" + e);
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
+                try {
+                    if (filee != null)
+                        filee.close();
+                } catch (IOException ex) {
+                    ex.printStackTrace();
+                }
+            }
+            */
 
+            //outputText(c.txPacket, direction.OUT);
+
+            //Sending Packet to ErrortHost
+
+            outputText(c.txPacket, direction.IN);
+
+            try {
+                c.socket.send(c.txPacket);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
 
             byte[] receiveData = new byte[DATA_SIZE];
             DatagramPacket rxPacket = new DatagramPacket(receiveData, receiveData.length);
@@ -211,108 +204,110 @@ class Client {
                 c.socket.receive(rxPacket);
                 rxPacket = resizePacket(rxPacket);
                 outputText(rxPacket, direction.IN);
-            }
-            catch (SocketTimeoutException ste)
-            {
+            } catch (SocketTimeoutException ste) {
                 System.out.println("Did not receive a packet from ErrorSim");
             }
-            
-            if((c.continueOrQuit).equals("q"))
-            	break;
-    	}
-      }
-    
-    
-    //A function that implements the RRQ of TFTP client, takes as input the port that the server uses for handling requests and name of the requested file
-    public synchronized void readRequest(int port,String filename) throws Exception {
-    	boolean isValidFile = true;
-    	byte[] file;
-    	
-    	while(isValidFile) {//Loop to receive DATA and send ACK until received DATA<512 bytes
-	    	//receive and create DATA
-    		byte[] receiveData = new byte[DATA_SIZE];
-	    	rxPacket = new DatagramPacket(receiveData, receiveData.length);
-            this.socket.receive(rxPacket);
-            rxPacket = resizePacket(rxPacket);
-            outputText(rxPacket, direction.IN);
-	        
-            
-	        //buffer/read file data here
-	        
-            
-	        //stop if received packet does not have DATA opcode or DATA is less then 512 bytes
-	        if (receiveData[1]!=3||rxPacket.getLength()<DATA_SIZE) isValidFile = false;
-	        else {
-	        	//create and send Ack packet with block # of received packet
-		        byte[] sendData = new byte[]{0,4,receiveData[2],receiveData[3]};
-		        txPacket = new DatagramPacket(sendData,sendData.length,InetAddress.getLocalHost(),port);
-		        this.socket.send(this.txPacket);
-		        outputText(txPacket, direction.OUT);
-	        }
-    	}
-    	
+
+            if ((c.continueOrQuit).equals("q"))
+                break;
+
+        }
+
+
     }
-    
-  //A function that implements the WRQ of TFTP client, takes as input the port that the server uses for handling requests and name of the requested file
-    public synchronized void writeRequest(int port,String filename) throws IOException {
-    	boolean isValidFile = true;
-    	byte[] file;
-    	int blockNum=1;
-    	
-    	while(isValidFile) {//Loop to receive ACK and send DATA until sent DATA<512 bytes
-    		//create and receive ACK
-	    	byte[] receiveData = new byte[4]; 
-	    	rxPacket = new DatagramPacket(receiveData, receiveData.length);
-            this.socket.receive(rxPacket);
-            rxPacket = resizePacket(rxPacket);
-            outputText(rxPacket, direction.IN);
-            
-            //create send DATA
-	        byte[] blockNumBytes= blockNumToBytes(blockNum++);
-	        byte[] sendData = new byte[DATA_SIZE];
-	        sendData[0]=0;
-	        sendData[1]=3;
-	        sendData[2]=blockNumBytes[0];
-	        sendData[3]=blockNumBytes[1];
-	        
-	        //buffer file data here
-	        
-	        //set data in DATA packet here
-	        for (int i=4;i<516;i++) {//4-515 are for 512 bytes of data
-	        	sendData[i]=0;
-	        }
-	        
-        	//create and send DATA packet
-	        txPacket = new DatagramPacket(sendData,sendData.length,InetAddress.getLocalHost(),port);
-	        this.socket.send(this.txPacket);
-	        txPacket = resizePacket(txPacket);
-	        outputText(txPacket, direction.OUT);
-	        
-	        //stop if sent DATA is less then 512 bytes
-	        if (txPacket.getLength()<DATA_SIZE) isValidFile = false;
-    	}	
-    }
-    
-    //A function to convert an int into an array of 2 bytes
-    public static byte[] blockNumToBytes(int blockNum) {
-        int b1 = blockNum / 256;
-        int b2 = blockNum % 256;
-    	return new byte[] {(byte)b1,(byte)b2};
-    }
-    
+
     //A function to create a new Datagram
     //Future updates to this code will implement the ability to create other types of TFTP packets
-    public static DatagramPacket newDatagram(InetAddress errorSimIP, OPCodes op) throws IOException {
+    public static DatagramPacket newDatagram(InetAddress errorSimIP, OPCodes op, String filename) throws IOException {
         String mode = "NETascii";
-        String filename = "README.txt";
+        // filename = "README.txt";
 
         DatagramPacket newPacket = makeRequest(mode, filename, op, errorSimIP);
         return newPacket;
     }
 
+
+    //NEVER CALLED
+    //A function that implements the RRQ of TFTP client, takes as input the port that the server uses for handling requests and name of the requested file
+    public synchronized void readRequest(int port, String filename) throws Exception {
+        boolean isValidFile = true;
+        byte[] file;
+
+        while (isValidFile) {//Loop to receive DATA and send ACK until received DATA<512 bytes
+            //receive and create DATA
+            byte[] receiveData = new byte[DATA_SIZE];
+            rxPacket = new DatagramPacket(receiveData, receiveData.length);
+            this.socket.receive(rxPacket);
+            rxPacket = resizePacket(rxPacket);
+            outputText(rxPacket, direction.IN);
+
+
+            //buffer/read file data here
+
+
+            //stop if received packet does not have DATA opcode or DATA is less then 512 bytes
+            if (receiveData[1] != 3 || rxPacket.getLength() < DATA_SIZE) isValidFile = false;
+            else {
+                //create and send Ack packet with block # of received packet
+                byte[] sendData = new byte[]{0, 4, receiveData[2], receiveData[3]};
+                txPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getLocalHost(), port);
+                this.socket.send(this.txPacket);
+                outputText(txPacket, direction.OUT);
+            }
+        }
+
+    }
+
+    //NEVER CALLED
+    //A function that implements the WRQ of TFTP client, takes as input the port that the server uses for handling requests and name of the requested file
+    public synchronized void writeRequest(int port, String filename) throws IOException {
+        boolean isValidFile = true;
+        byte[] file;
+        int blockNum = 1;
+
+        while (isValidFile) {//Loop to receive ACK and send DATA until sent DATA<512 bytes
+            //create and receive ACK
+            byte[] receiveData = new byte[4];
+            rxPacket = new DatagramPacket(receiveData, receiveData.length);
+            this.socket.receive(rxPacket);
+            rxPacket = resizePacket(rxPacket);
+            outputText(rxPacket, direction.IN);
+
+            //create send DATA
+            byte[] blockNumBytes = blockNumToBytes(blockNum++);
+            byte[] sendData = new byte[DATA_SIZE];
+            sendData[0] = 0;
+            sendData[1] = 3;
+            sendData[2] = blockNumBytes[0];
+            sendData[3] = blockNumBytes[1];
+
+            //buffer file data here
+
+            //set data in DATA packet here
+            for (int i = 4; i < 516; i++) {//4-515 are for 512 bytes of data
+                sendData[i] = 0;
+            }
+
+            //create and send DATA packet
+            txPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getLocalHost(), port);
+            this.socket.send(this.txPacket);
+            txPacket = resizePacket(txPacket);
+            outputText(txPacket, direction.OUT);
+
+            //stop if sent DATA is less then 512 bytes
+            if (txPacket.getLength() < DATA_SIZE) isValidFile = false;
+        }
+    }
+
+    //A function to convert an int into an array of 2 bytes
+    public static byte[] blockNumToBytes(int blockNum) {
+        int b1 = blockNum / 256;
+        int b2 = blockNum % 256;
+        return new byte[]{(byte) b1, (byte) b2};
+    }
+
     //A function that reads the text in each packet and displays its contents in ASCII and BYTES
-    public static void outputText(DatagramPacket packet, direction dir)
-    {
+    public static void outputText(DatagramPacket packet, direction dir) {
         if (dir == direction.IN)
             System.out.println("--Inbound Packet Data from ErrorSim--");
         else if (dir == direction.OUT)
@@ -325,10 +320,9 @@ class Client {
 
         //BYTE OUTPUT
         //Confirm output with - https://www.branah.com/ascii-converter
-        for (int j = 0; j < data.length; j++)
-        {
+        for (int j = 0; j < data.length; j++) {
             System.out.print(data[j]);
-            if (j%1 == 0 && j != 0)
+            if (j % 1 == 0 && j != 0)
                 System.out.print(" ");
         }
         System.out.println("\n-----------------------");
@@ -336,17 +330,15 @@ class Client {
 
     //Packets are initialized with 100 Bytes of memory but don't actually use all the space
     //This function resizes a packet based on the length of its payload, conserving space
-    public static DatagramPacket resizePacket(DatagramPacket packet)
-    {
-        InetSocketAddress temp_add = (InetSocketAddress)packet.getSocketAddress();
+    public static DatagramPacket resizePacket(DatagramPacket packet) {
+        InetSocketAddress temp_add = (InetSocketAddress) packet.getSocketAddress();
         int port = temp_add.getPort();
         InetAddress ip = packet.getAddress();
         int length = packet.getLength();
 
         byte[] tempData = new byte[length];
 
-        for (int i = 0; i < length; i++)
-        {
+        for (int i = 0; i < length; i++) {
             tempData[i] = packet.getData()[i];
         }
 
@@ -354,3 +346,16 @@ class Client {
         return resizedPacket;
     }
 }
+
+
+    /*
+    //create a new packet each user input and sending it to ErrorSim
+    public static void sendReceiveLoop(Client c) throws IOException
+
+    {
+
+        //while(true) {
+
+       // }
+    }
+    */
