@@ -99,6 +99,7 @@ class Server implements Runnable
                 }
             }
             rxPacket = resizePacket(rxPacket);
+            System.out.println("HERE");
             outputText(rxPacket, direction.IN);
 
             //Ensures inbound packets are formatted correctly
@@ -174,14 +175,17 @@ class Server implements Runnable
         //MESSAGE OUTPUT
         String ascii = new String(data, Charset.forName("UTF-8"));
         ascii = ascii.substring(4, ascii.length());
-        if (ascii.length() > 0)
-            System.out.println("MESSAGE = " + ascii);
+        if (ascii.length() > 0) {
+            System.out.println("MSG LENGTH = " + ascii.length());
+            System.out.println("MESSAGE = ");
+            System.out.println(ascii);
+        }
         else
             System.out.println("MESSAGE = NULL");
 
         //BYTE OUTPUT
         //Confirm output with - https://www.branah.com/ascii-converter
-        System.out.print("BYTES = ");
+        System.out.println("BYTES = ");
         for (int j = 0; j < data.length; j++) {
             System.out.print(data[j]);
             if (j % 1 == 0 && j != 0)
@@ -344,19 +348,22 @@ class Server implements Runnable
 
     //A function that implements the RRQ of a TFTP server, takes as input the client's port and file name of requested file
     public synchronized void readRequest(int port,String filename) throws Exception {
-        boolean isValidFile = true;
+        //boolean isValidFile = true;
         int blockNum=1;
         DatagramSocket readSocket = new DatagramSocket();//new socket for RRQ
-        //FileInputStream fileInput = new FileInputStream(filename);
+
+
         Path path = Paths.get("./" + filename);
         byte[] file = Files.readAllBytes(path);
+
         int totalBlocksRequired = (file.length / 512) + 1;
         int remainderLastBlock = (file.length % 512);
-        int currentBlock = 1;
+        //int currentBlock = 1;
         boolean onLastBlock = false;
+
         int j=0;
-        
-        while(isValidFile) {//Loop to send DATA and receive ACK until DATA<512 bytes
+
+        while(!onLastBlock) {//Loop to send DATA and receive ACK until DATA<512 bytes
             byte[] blockNumBytes= blockNumToBytes(blockNum++);
             byte[] sendData = new byte[DATA_SIZE];
             sendData[0]=0;
@@ -364,38 +371,39 @@ class Server implements Runnable
             sendData[2]=blockNumBytes[0];
             sendData[3]=blockNumBytes[1];
 
-            //buffer file data here
-
-            //System.out.println("file = " + new String(file, Charset.forName("UTF-8")));
-            //System.out.println((file.length / 512) + " " + (file.length % 512));
-            //System.out.println(totalBlocksRequired);
-
-            if (totalBlocksRequired == 1 || currentBlock == totalBlocksRequired)
+            if (totalBlocksRequired == 1 || file.length - j < 512)
                 onLastBlock = true;
 
-
-            for (int i = 4; i < DATA_SIZE && j<file.length; i++) {//4-515 are for 512 bytes of data
-                sendData[i] = file[j++];
+            if (!onLastBlock) {
+                for (int i = 4; i < DATA_SIZE && j < file.length; i++) {//4-515 are for 512 bytes of data
+                    sendData[i] = file[j++];
+                }
             }
-            
+            else
+            {
+                sendData = new byte[remainderLastBlock + 4];
+                sendData[0]=0;
+                sendData[1]=3;
+                sendData[2]=blockNumBytes[0];
+                sendData[3]=blockNumBytes[1];
+                for (int i = 4; i < remainderLastBlock + 4; i++) {//4-515 are for 512 bytes of data
+                    sendData[i] = file[j++];
+                }
+            }
+
             //send DATA packet to client
             DatagramPacket txPacket = new DatagramPacket(sendData,sendData.length,InetAddress.getLocalHost(),port);
             txPacket = resizePacket(txPacket);
             readSocket.send(txPacket);
             outputText(txPacket, direction.OUT);
 
-            //stop if sent DATA is less then 512 byte
-            if (txPacket.getLength()<DATA_SIZE)
-                isValidFile = false;
-            else {
-                //receive ACK packet from client, nothing is done with it yet
-                byte[] receiveData = new byte[4];
-                DatagramPacket rxPacket = new DatagramPacket(receiveData, receiveData.length);
-                readSocket.receive(rxPacket);
-                rxPacket = resizePacket(rxPacket);
-                outputText(rxPacket, direction.IN);
-            }
+            byte[] receiveData = new byte[4];
+            DatagramPacket rxPacket = new DatagramPacket(receiveData, receiveData.length);
+            readSocket.receive(rxPacket);
+            rxPacket = resizePacket(rxPacket);
+            outputText(rxPacket, direction.IN);
         }
+        System.out.println("TERMINATING SOCKET");
         readSocket.close();
     }
 

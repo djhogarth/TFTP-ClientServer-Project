@@ -62,38 +62,40 @@ class ErrorSim
             try {
                 DatagramPacket rxPacket = new DatagramPacket(rxData, rxData.length);
                 DatagramPacket txPacket;
-                
+
                 //Receive from CLIENT
                 clientSocket.receive(rxPacket);
                 rxPacket = resizePacket(rxPacket);
                 outputText(rxPacket, direction.IN, endhost.CLIENT);
-                
+
                 InetSocketAddress temp_add = (InetSocketAddress) rxPacket.getSocketAddress();
                 int client_port = temp_add.getPort();
-               
-                
+
                 //Send to SERVER listener or last Thread
                 txPacket = rxPacket;
+                txPacket.setPort(SERVER_PORT);
                 if(rxData[1]==3||rxData[1]==4) {
-                	txPacket.setPort(tempPort);
-	            }
+                    txPacket.setPort(tempPort);
+                }
                 else {
-                	txPacket.setPort(SERVER_PORT);
+                    txPacket.setPort(SERVER_PORT);
                 }
                 serverSocket.send(txPacket);
                 outputText(txPacket, direction.OUT, endhost.SERVER);
-                
-                
-	            //Receive from SERVER
-	            rxPacket = new DatagramPacket(rxData, rxData.length);
-	            serverSocket.receive(rxPacket);
-	            rxPacket = resizePacket(rxPacket);
-	            outputText(rxPacket, direction.IN, endhost.SERVER);
-                
-	            if(rxData[1]==3||rxData[1]==4) {
-	            	tempPort=rxPacket.getPort();
-	            }
-	            
+
+
+
+                //Receive from SERVER
+                rxPacket = new DatagramPacket(rxData, rxData.length);
+                serverSocket.receive(rxPacket);
+                rxPacket = resizePacket(rxPacket);
+                outputText(rxPacket, direction.IN, endhost.SERVER);
+
+                if(rxData[1]==3||rxData[1]==4) {
+                    tempPort = rxPacket.getPort();
+                }
+
+
                 //Send to CLIENT
                 txPacket = rxPacket;
                 txPacket.setPort(client_port);
@@ -133,14 +135,17 @@ class ErrorSim
         //MESSAGE OUTPUT
         String ascii = new String(data, Charset.forName("UTF-8"));
         ascii = ascii.substring(4, ascii.length());
-        if (ascii.length() > 0)
-            System.out.println("MESSAGE = " + ascii);
+        if (ascii.length() > 0) {
+            System.out.println("MSG LENGTH = " + ascii.length());
+            System.out.println("MESSAGE = ");
+            System.out.println(ascii);
+        }
         else
             System.out.println("MESSAGE = NULL");
 
         //BYTE OUTPUT
         //Confirm output with - https://www.branah.com/ascii-converter
-        System.out.print("BYTES = ");
+        System.out.println("BYTES = ");
         for (int j = 0; j < data.length; j++) {
             System.out.print(data[j]);
             if (j % 1 == 0 && j != 0)

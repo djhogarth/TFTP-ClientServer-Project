@@ -112,7 +112,6 @@ class Client {
         //Thread.sleep(3000); //Allows INTHOST and SERVER to load first
         System.out.println("TFTP Client is running.\n");
         Client c = new Client();
-        //sendReceiveLoop(c);
         userInput(c);
     }
 
@@ -159,12 +158,6 @@ class Client {
         return packet;
     }
 
-    //private static synchronized DatagramPacket makeACK(OPCodes rq, InetAddress ip) {
-
-
-    //}
-
-
 
     // gets file path, file name and operation (read/write) from the user
     public static void userInput(Client c) throws IOException {
@@ -192,6 +185,12 @@ class Client {
             if ((c.operation).equals("write") || (c.operation).equals("w")) {
                 System.out.println("Creating a WRQ Packet");
                 c.txPacket = newDatagram(c.errorSimIP, OPCodes.WRITE, c.filename);
+                try {
+                    c.socket.send(c.txPacket);
+                    c.writeRequest(getPort(c.txPacket), c.filename);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
 
             if ((c.operation).equals("read") || c.operation.equals("r")) {
@@ -206,73 +205,15 @@ class Client {
                 }
             }
 
-            File file = new File(c.pathname);
-            FileInputStream filee = null;
-
-
-            /*
-            try {
-                filee = new FileInputStream(file);
-                byte[] data = new byte[(int) file.length()];
-                filee.read(data); //read file into bytes[]
-
-                System.out.println("File was successfully read in : ");
-    			/*
-    			String s = new String(data);
-    			 System.out.println("File content: " + s);
-				*/
-
-            /*
-            } catch (FileNotFoundException e) {
-                System.out.println("File not found" + e);
-            } catch (IOException e) {
-                e.printStackTrace();
-            } finally {
-                try {
-                    if (filee != null)
-                        filee.close();
-                } catch (IOException ex) {
-                    ex.printStackTrace();
-                }
-            }
-            */
-
-            //outputText(c.txPacket, direction.OUT);
-
-            //Sending Packet to ErrortHost
-
-
-
-            /*
-            byte[] receiveData = new byte[DATA_SIZE];
-            DatagramPacket rxPacket = new DatagramPacket(receiveData, receiveData.length);
-            try {
-                c.socket.receive(rxPacket);
-                rxPacket = resizePacket(rxPacket);
-                outputText(rxPacket, direction.IN);
-
-                //**Working on this later**
-                //If response from Server is
-                //if (rxPacket.getData()[0] == 0 && rxPacket.getData()[0] == 0)
-
-            } catch (SocketTimeoutException ste) {
-                System.out.println("Did not receive a packet from ErrorSim");
-            }
-
-*/
             if ((c.continueOrQuit).equals("q"))
                 break;
 
         }
 
-
     }
 
     public static void saveFile(Vector<byte[]> receivedFile)
     {
-        //System.out.println(receivedFile.size());
-        //System.out.println(receivedFile.elementAt(0).length);
-
         byte[] tempArray;
         int charCount = 0;
 
@@ -348,6 +289,7 @@ class Client {
             tempVector.addElement(buffer);
             //buffer/read file data here
 
+
             //stop if received packet does not have DATA opcode or DATA is less then 512 bytes
             if (receiveData[1] != 3) isValidPkt = false;
             else {
@@ -373,7 +315,6 @@ class Client {
        Repeats until Client sends last DATA pkt, Server sends a final ACK
      */
 
-    //NEVER CALLED
     //A function that implements the WRQ of TFTP client, takes as input the port that the server uses for handling requests and name of the requested file
     public synchronized void writeRequest(int port, String filename) throws IOException {
         boolean isValidFile = true;
@@ -446,14 +387,17 @@ class Client {
         //MESSAGE OUTPUT
         String ascii = new String(data, Charset.forName("UTF-8"));
         ascii = ascii.substring(4, ascii.length());
-        if (ascii.length() > 0)
-            System.out.println("MESSAGE = " + ascii);
+        if (ascii.length() > 0) {
+            System.out.println("MSG LENGTH = " + ascii.length());
+            System.out.println("MESSAGE = ");
+            System.out.println(ascii);
+        }
         else
             System.out.println("MESSAGE = NULL");
 
         //BYTE OUTPUT
         //Confirm output with - https://www.branah.com/ascii-converter
-        System.out.print("BYTES = ");
+        System.out.println("BYTES = ");
         for (int j = 0; j < data.length; j++) {
             System.out.print(data[j]);
             if (j % 1 == 0 && j != 0)
