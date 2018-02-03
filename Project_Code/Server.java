@@ -7,6 +7,8 @@
 */
 
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.net.*;
 import java.nio.charset.Charset;
 import java.util.Arrays;
@@ -52,7 +54,7 @@ class Server implements Runnable
 
         try {
             socket = new DatagramSocket(port);
-            //errorSimSocket.setSoTimeout(5000); // socket
+            socket.setSoTimeout(30000); // LISTENER timeouts after 30 seconds
         }
         catch (SocketException se)
         {
@@ -93,9 +95,10 @@ class Server implements Runnable
                         receivedPkt = true;
 
                 } catch (Exception e) {
-                    System.out.println("failed to receive");
+                	System.out.println("Server has timed out: terminating...");
+                    //System.out.println("failed to receive");
                     //e.printStackTrace();
-                    //System.exit(1);
+                    System.exit(1);
                 }
             }
             rxPacket = resizePacket(rxPacket);
@@ -278,7 +281,7 @@ class Server implements Runnable
         else if (data[0] == 0 && data[1] == 2)  //IF PACKET IS WRQ
         {
             try {
-                this.writeRequest(port, filename);
+                writeRequest(port, filename);
             } catch (Exception e) {
                 // TODO Auto-generated catch block
                 e.printStackTrace();
@@ -302,39 +305,55 @@ class Server implements Runnable
         */
 
     }
-
+    
+    /*
+	    WRQ FLOW
+	    Client -> WRQ -> Server
+	    Server -> ACK BLK 0 -> Client
+	    Client -> DATA BLK 1 -> Server
+	    Server -> ACK BLK 1 -> Client
+	    Repeats until Client sends last DATA pkt, Server sends a final ACK
+    */
+    
     //A function that implements the WRQ of a TFTP server, takes as input the client's port and file name of requested file
     public synchronized void writeRequest(int port,String filename) throws Exception {
         boolean isValidFile = true;
-        byte[] file;
+        Vector<byte[]> fileVector = new Vector<byte[]>();
         DatagramSocket writeSocket = new DatagramSocket();//new socket for WRQ
         byte[] sendData = new byte[]{0,4,0,0};//block 0 ACK packet
 
-        while(isValidFile) {//Loop to send ACK and receive DATA until DATA<512 bytes
+        while(true) {//Loop to send ACK and receive DATA until DATA<512 bytes
             //send ACK packet to Client
             DatagramPacket txPacket = new DatagramPacket(sendData,sendData.length,InetAddress.getLocalHost(),port);
             writeSocket.send(txPacket);
-            outputText(txPacket, direction.OUT);
-
-            //receive DATA packet from Client
-            byte[] receiveData = new byte[DATA_SIZE];
-            DatagramPacket rxPacket = new DatagramPacket(receiveData, receiveData.length);
-            writeSocket.receive(rxPacket);
-            rxPacket = resizePacket(rxPacket);
-            outputText(rxPacket, direction.IN);
-
-
-
-            //buffer/write file data here
-
-
-
-            //set Data of next ACK packet with received block #
-            sendData = new byte[]{0,4,receiveData[2],receiveData[3]};
-
-            //stop if received DATA packet is less then 512 bytes
-            if (rxPacket.getLength()<DATA_SIZE) isValidFile = false;
+            outputText(txPacket, direction.OUT);   
+            
+            if(isValidFile) {
+	            //receive DATA packet from Client
+	            byte[] receiveData = new byte[DATA_SIZE];
+	            DatagramPacket rxPacket = new DatagramPacket(receiveData, receiveData.length);
+	            writeSocket.receive(rxPacket);
+	            rxPacket = resizePacket(rxPacket);
+	            outputText(rxPacket, direction.IN);
+	
+	            byte[] buffer = new byte[rxPacket.getLength() - 4];
+	
+	            for (int i = 4; i < rxPacket.getLength(); i++)
+	            {
+	                buffer[i - 4] = rxPacket.getData()[i];
+	            }
+	            
+	            fileVector.addElement(buffer);
+	
+	            //set Data of next ACK packet with received block #
+	            sendData = new byte[]{0,4,receiveData[2],receiveData[3]};
+	            //stop if received DATA packet is less then 512 bytes
+	            if (rxPacket.getLength()<DATA_SIZE) isValidFile = false;
+            }
+            else break;
         }
+        saveFile(fileVector,filename);
+        System.out.println("WRQ Complete: TERMINATING SOCKET");
         writeSocket.close();
     }
 
@@ -358,7 +377,6 @@ class Server implements Runnable
 
         int totalBlocksRequired = (file.length / 512) + 1;
         int remainderLastBlock = (file.length % 512);
-        //int currentBlock = 1;
         boolean onLastBlock = false;
 
         int j=0;
@@ -403,10 +421,44 @@ class Server implements Runnable
             rxPacket = resizePacket(rxPacket);
             outputText(rxPacket, direction.IN);
         }
-        System.out.println("TERMINATING SOCKET");
+        System.out.println("RRQ Complete: TERMINATING SOCKET");
         readSocket.close();
     }
+    
+    //A function that writes a file with WRQ attached to its filename, takes a byte array and a filename, 
+    public static void saveFile(Vector<byte[]> receivedFile, String filename)
+    {
+        byte[] tempArray;
+        int charCount = 0;
 
+        for (int i = 0; i < receivedFile.size(); i++)
+        {
+            charCount += receivedFile.elementAt(i).length;
+        }
+
+        tempArray = new byte[charCount];
+
+        String path = "./WRQ";
+        String outputName = " "+filename;
+
+        int tempCount = 0;
+
+        for (byte[] bytes : receivedFile) {
+            for (byte b : bytes) {
+                tempArray[tempCount] = b;
+                tempCount++;
+            }
+        }
+
+        try (FileOutputStream fileOuputStream = new FileOutputStream(path + outputName)) {
+            fileOuputStream.write(tempArray);
+            fileOuputStream.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+    }
+    
     //A function to convert an int into an array of 2 bytes
     public static byte[] blockNumToBytes(int blockNum) {
         int b1 = blockNum / 256;

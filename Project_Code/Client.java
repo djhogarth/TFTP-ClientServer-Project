@@ -43,6 +43,9 @@
 import java.io.*;
 import java.net.*;
 import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Scanner;
 import java.util.Vector;
 
@@ -318,10 +321,16 @@ class Client {
     //A function that implements the WRQ of TFTP client, takes as input the port that the server uses for handling requests and name of the requested file
     public synchronized void writeRequest(int port, String filename) throws IOException {
         boolean isValidFile = true;
-        byte[] file;
         int blockNum = 1;
-
-        while (isValidFile) {//Loop to receive ACK and send DATA until sent DATA<512 bytes
+        
+        Path path = Paths.get("./" + filename);
+        byte[] file = Files.readAllBytes(path);
+        int totalBlocksRequired = (file.length / 512) + 1;
+        int remainderLastBlock = (file.length % 512);
+        boolean onLastBlock = false;
+        int j=0;
+        
+        while (true) {//Loop to receive ACK and send DATA until sent DATA<512 bytes
             //create and receive ACK
             byte[] receiveData = new byte[4];
             rxPacket = new DatagramPacket(receiveData, receiveData.length);
@@ -336,22 +345,36 @@ class Client {
             sendData[1] = 3;
             sendData[2] = blockNumBytes[0];
             sendData[3] = blockNumBytes[1];
+            
+            //Stop after final ACK
+            if(onLastBlock) break;
+            
+            //Check if its the last block
+            if (totalBlocksRequired == 1 || file.length - j < 512)
+                onLastBlock = true;
 
-            //buffer file data here
-
-            //set data in DATA packet here
-            for (int i = 4; i < 516; i++) {//4-515 are for 512 bytes of data
-                sendData[i] = 0;
+            if (!onLastBlock) {
+                for (int i = 4; i < DATA_SIZE && j < file.length; i++) {//4-515 are for 512 bytes of data
+                    sendData[i] = file[j++];
+                }
             }
-
-            //create and send DATA packet
+            else
+            {
+                sendData = new byte[remainderLastBlock + 4];
+                sendData[0]=0;
+                sendData[1]=3;
+                sendData[2]=blockNumBytes[0];
+                sendData[3]=blockNumBytes[1];
+                for (int i = 4; i < remainderLastBlock + 4; i++) {//4-515 are for 512 bytes of data
+                    sendData[i] = file[j++];
+                }
+            }
+            
+           
             txPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getLocalHost(), port);
             this.socket.send(this.txPacket);
             txPacket = resizePacket(txPacket);
             outputText(txPacket, direction.OUT);
-
-            //stop if sent DATA is less then 512 bytes
-            if (txPacket.getLength() < DATA_SIZE) isValidFile = false;
         }
     }
 

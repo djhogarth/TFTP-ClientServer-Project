@@ -95,8 +95,8 @@ class ErrorSim
                     serverSocket.receive(rxPacket);
                     rxPacket = resizePacket(rxPacket);
                     outputText(rxPacket, direction.IN, endhost.SERVER);
-
-                    if (rxPacket.getData().length < 512)
+                    
+                    if (rxPacket.getData().length < 512 && rxData[1]==3)
                         lastDataPkt = true;
 
                     if (rxData[1] == 3 || rxData[1] == 4) {
