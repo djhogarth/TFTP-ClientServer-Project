@@ -57,6 +57,8 @@ class ErrorSim
 
         byte[] rxData = new byte[DATA_SIZE];
 
+        boolean lastDataPkt = false;
+
         while(true)
         {
             try {
@@ -65,6 +67,10 @@ class ErrorSim
 
                 //Receive from CLIENT
                 clientSocket.receive(rxPacket);
+
+                if (isRequest(rxPacket))
+                    lastDataPkt = false;
+
                 rxPacket = resizePacket(rxPacket);
                 outputText(rxPacket, direction.IN, endhost.CLIENT);
 
@@ -83,25 +89,27 @@ class ErrorSim
                 serverSocket.send(txPacket);
                 outputText(txPacket, direction.OUT, endhost.SERVER);
 
+                if (!lastDataPkt) {
+                    //Receive from SERVER
+                    rxPacket = new DatagramPacket(rxData, rxData.length);
+                    serverSocket.receive(rxPacket);
+                    rxPacket = resizePacket(rxPacket);
+                    outputText(rxPacket, direction.IN, endhost.SERVER);
 
+                    if (rxPacket.getData().length < 512)
+                        lastDataPkt = true;
 
-                //Receive from SERVER
-                rxPacket = new DatagramPacket(rxData, rxData.length);
-                serverSocket.receive(rxPacket);
-                rxPacket = resizePacket(rxPacket);
-                outputText(rxPacket, direction.IN, endhost.SERVER);
+                    if (rxData[1] == 3 || rxData[1] == 4) {
+                        tempPort = rxPacket.getPort();
+                    }
 
-                if(rxData[1]==3||rxData[1]==4) {
-                    tempPort = rxPacket.getPort();
+                    //Send to CLIENT
+                    txPacket = rxPacket;
+                    txPacket.setPort(client_port);
+                    txPacket.setAddress(InetAddress.getLocalHost());
+                    clientSocket.send(txPacket);
+                    outputText(txPacket, direction.OUT, endhost.CLIENT);
                 }
-
-
-                //Send to CLIENT
-                txPacket = rxPacket;
-                txPacket.setPort(client_port);
-                txPacket.setAddress(InetAddress.getLocalHost());
-                clientSocket.send(txPacket);
-                outputText(txPacket, direction.OUT, endhost.CLIENT);
             }
             catch (SocketTimeoutException ste)
             {
@@ -174,5 +182,15 @@ class ErrorSim
 
         DatagramPacket resizedPacket = new DatagramPacket(tempData, tempData.length, ip, port);
         return resizedPacket;
+    }
+
+    public static boolean isRequest(DatagramPacket p)
+    {
+        byte[] header = p.getData();
+
+        if (header[0] == 0 && (header[1] == 1 || header[1] == 2))
+            return true;
+        else
+            return false;
     }
 }
