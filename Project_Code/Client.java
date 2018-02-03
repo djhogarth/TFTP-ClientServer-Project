@@ -2,28 +2,9 @@
 /*
   FILENAME - Client.java
   ASSIGNMENT - Final Project - SYSC 3303
-  AUTHOR -
-  DETAILS - A program that will generate five RRQ, five WRQ, and one ERROR datagram packets and sends them to IntHost.java
+  AUTHOR - GROUP 3 - SYSC 3303 W18
+  DETAILS - A program that will generate valid TFTP datagram packets and sends them to IntHost.java
 */
-
-/*  FLOW
-    c1 - form message
-    c2 - create datagram
-    c3 - send datagram
-    s1 - receive datagram
-    s2 - extract message
-    s3 - create datagram
-    s4 - send datagram
-    c4 - receive datagram
-    c5 - extract message
-    c6 - print message
- */
-
-//HOW TO LAUNCH ALL FILES SIMULTANEOUSLY
-// File -> Import -> Run/Debug -> Launch Configurations -> Next
-// Browse to Assignment1_AlexV/Launch Config -> Select Folder -> Select Assignment1_AlexV.launch -> Check "Overwrite" box -> Finish
-// Run -> Run Configurations -> Launch Group -> Assignment1_AlexV -> Run
-
 
 /*
        WRQ FLOW
@@ -117,8 +98,7 @@ class Client {
         Client c = new Client();
         userInput(c);
     }
-
-    //ONLY CALLED BY newDatagram()
+  
     //A function to create FTFP REQUEST headers
     private static synchronized DatagramPacket makeRequest(String mode, String filename, OPCodes rq, InetAddress ip) {
         //HEADER ==> OPCODE = 2B | FILENAME | 0x0 | MODE | 0x0
@@ -161,14 +141,11 @@ class Client {
         return packet;
     }
 
-
     // gets file path, file name and operation (read/write) from the user
     public static void userInput(Client c) throws IOException {
 
         while (true) {
-
-            System.out.println("Working Directory = " +
-                    System.getProperty("user.dir"));
+            System.out.println("Working Directory = " + System.getProperty("user.dir"));
 
             Scanner reader = new Scanner(System.in);  // Reading from System.in
             System.out.print("Enter file name: ");
@@ -182,8 +159,6 @@ class Client {
 
             System.out.print("If this is the last file, enter 'q'.  ");
             c.continueOrQuit = reader.nextLine();
-
-            //reader.close();
 
             if ((c.operation).equals("write") || (c.operation).equals("w")) {
                 System.out.println("Creating a WRQ Packet");
@@ -210,9 +185,7 @@ class Client {
 
             if ((c.continueOrQuit).equals("q"))
                 break;
-
         }
-
     }
 
     public static void saveFile(Vector<byte[]> receivedFile)
@@ -245,7 +218,6 @@ class Client {
         } catch (IOException e) {
             e.printStackTrace();
         }
-
     }
 
     //A function to create a new Datagram
@@ -290,8 +262,6 @@ class Client {
             }
 
             tempVector.addElement(buffer);
-            //buffer/read file data here
-
 
             //stop if received packet does not have DATA opcode or DATA is less then 512 bytes
             if (receiveData[1] != 3) isValidPkt = false;
@@ -370,7 +340,6 @@ class Client {
                 }
             }
             
-           
             txPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getLocalHost(), port);
             this.socket.send(this.txPacket);
             txPacket = resizePacket(txPacket);
@@ -455,16 +424,3 @@ class Client {
         return port;
     }
 }
-
-
-    /*
-    //create a new packet each user input and sending it to ErrorSim
-    public static void sendReceiveLoop(Client c) throws IOException
-
-    {
-
-        //while(true) {
-
-       // }
-    }
-    */
