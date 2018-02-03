@@ -200,6 +200,7 @@ class Client {
                 try {
                     c.socket.send(c.txPacket);
                     c.receivedFile = c.readRequest(getPort(c.txPacket));
+                    saveFile(c.receivedFile);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -242,6 +243,7 @@ class Client {
 
 
 
+            /*
             byte[] receiveData = new byte[DATA_SIZE];
             DatagramPacket rxPacket = new DatagramPacket(receiveData, receiveData.length);
             try {
@@ -257,11 +259,48 @@ class Client {
                 System.out.println("Did not receive a packet from ErrorSim");
             }
 
+*/
             if ((c.continueOrQuit).equals("q"))
                 break;
 
         }
 
+
+    }
+
+    public static void saveFile(Vector<byte[]> receivedFile)
+    {
+        //System.out.println(receivedFile.size());
+        //System.out.println(receivedFile.elementAt(0).length);
+
+        byte[] tempArray;
+        int charCount = 0;
+
+        for (int i = 0; i < receivedFile.size(); i++)
+        {
+            charCount += receivedFile.elementAt(i).length;
+        }
+
+        tempArray = new byte[charCount];
+
+        String path = "./";
+        String outputName = "output.txt";
+
+        int tempCount = 0;
+
+        for (byte[] bytes : receivedFile) {
+            for (byte b : bytes) {
+                tempArray[tempCount] = b;
+                tempCount++;
+            }
+        }
+
+        try (FileOutputStream fileOuputStream = new FileOutputStream(path + outputName)) {
+            fileOuputStream.write(tempArray);
+            fileOuputStream.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
     }
 
@@ -290,7 +329,7 @@ class Client {
     //receivedFile is a vector that stores all byte[] for a file stream; this will be converted back to a file later
     public synchronized Vector<byte[]> readRequest(int port) throws Exception {
         boolean isValidPkt = true;
-
+        Vector<byte[]> tempVector = new Vector<byte[]>();
 
         while (isValidPkt) {//Loop to receive DATA and send ACK until received DATA<512 bytes
             //receive and create DATA
@@ -299,12 +338,14 @@ class Client {
             this.socket.receive(rxPacket);
             rxPacket = resizePacket(rxPacket);
             outputText(rxPacket, direction.IN);
-            byte[] buffer = new byte[rxPacket.getLength()];
+            byte[] buffer = new byte[rxPacket.getLength() - 4];
 
             for (int i = 4; i < rxPacket.getLength(); i++)
+            {
                 buffer[i - 4] = rxPacket.getData()[i];
+            }
 
-            //receivedFile.addElement(buffer);
+            tempVector.addElement(buffer);
             //buffer/read file data here
 
 
@@ -321,7 +362,7 @@ class Client {
             }
         }
 
-        return receivedFile;
+        return tempVector;
     }
 
     /*
@@ -383,21 +424,42 @@ class Client {
 
     //A function that reads the text in each packet and displays its contents in ASCII and BYTES
     public static void outputText(DatagramPacket packet, direction dir) {
+
+        byte[] data = packet.getData();
+
         if (dir == direction.IN)
             System.out.println("--Inbound Packet Data from ErrorSim--");
         else if (dir == direction.OUT)
             System.out.println("--Outbound Packet Data to ErrorSim--");
 
-        //ASCII OUTPUT
-        byte[] data = packet.getData();
+        //PACKET TYPE OUTPUT
+        if (data[0] == 0 && data[1] == 1)
+            System.out.println("OPCODE = READ [0x01]");
+        if (data[0] == 0 && data[1] == 2)
+            System.out.println("OPCODE = WRITE [0x02]");
+        if (data[0] == 0 && data[1] ==  3)
+            System.out.println("OPCODE = DATA [0x03]");
+        if (data[0] == 0 && data[1] ==  4)
+            System.out.println("OPCODE = ACK [0x04]");
+        if (data[0] == 0 && data[1] ==  5)
+            System.out.println("OPCODE = ERROR [0x05]");
+
+        //MESSAGE OUTPUT
         String ascii = new String(data, Charset.forName("UTF-8"));
-        System.out.println(ascii);
+        ascii = ascii.substring(4, ascii.length());
+        if (ascii.length() > 0)
+            System.out.println("MESSAGE = " + ascii);
+        else
+            System.out.println("MESSAGE = NULL");
 
         //BYTE OUTPUT
         //Confirm output with - https://www.branah.com/ascii-converter
+        System.out.print("BYTES = ");
         for (int j = 0; j < data.length; j++) {
             System.out.print(data[j]);
             if (j % 1 == 0 && j != 0)
+                System.out.print(" ");
+            if (j == 0)
                 System.out.print(" ");
         }
         System.out.println("\n-----------------------");

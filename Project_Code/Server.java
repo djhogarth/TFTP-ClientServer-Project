@@ -152,22 +152,41 @@ class Server implements Runnable
     //Future iterations will update this function for QUIET/VERBOSE options
     public synchronized static void outputText(DatagramPacket packet, direction dir)
     {
+        byte[] data = packet.getData();
+
         if (dir == direction.IN)
             System.out.println("--Inbound Packet Data from ErrorSim--");
         else if (dir == direction.OUT)
             System.out.println("--Outbound Packet Data to ErrorSim--");
 
-        //ASCII OUTPUT
-        byte[] data = packet.getData();
+        //PACKET TYPE OUTPUT
+        if (data[0] == 0 && data[1] == 1)
+            System.out.println("OPCODE = READ [0x01]");
+        if (data[0] == 0 && data[1] == 2)
+            System.out.println("OPCODE = WRITE [0x02]");
+        if (data[0] == 0 && data[1] ==  3)
+            System.out.println("OPCODE = DATA [0x03]");
+        if (data[0] == 0 && data[1] ==  4)
+            System.out.println("OPCODE = ACK [0x04]");
+        if (data[0] == 0 && data[1] ==  5)
+            System.out.println("OPCODE = ERROR [0x05]");
+
+        //MESSAGE OUTPUT
         String ascii = new String(data, Charset.forName("UTF-8"));
-        System.out.println(ascii);
+        ascii = ascii.substring(4, ascii.length());
+        if (ascii.length() > 0)
+            System.out.println("MESSAGE = " + ascii);
+        else
+            System.out.println("MESSAGE = NULL");
 
         //BYTE OUTPUT
         //Confirm output with - https://www.branah.com/ascii-converter
-        for (int j = 0; j < data.length; j++)
-        {
+        System.out.print("BYTES = ");
+        for (int j = 0; j < data.length; j++) {
             System.out.print(data[j]);
-            if (j%1 == 0 && j != 0)
+            if (j % 1 == 0 && j != 0)
+                System.out.print(" ");
+            if (j == 0)
                 System.out.print(" ");
         }
         System.out.println("\n-----------------------");
@@ -268,13 +287,15 @@ class Server implements Runnable
             response[3] = 0;
         }
 
-        outputText(txPacket, direction.OUT);
+        //outputText(txPacket, direction.OUT);
 
+        /*
         try {
             socket.send(txPacket);
         } catch (Exception e) {
             e.printStackTrace();
         }
+        */
 
     }
 
@@ -344,9 +365,9 @@ class Server implements Runnable
 
             //buffer file data here
 
-            System.out.println("file = " + new String(file, Charset.forName("UTF-8")));
-            System.out.println((file.length / 512) + " " + (file.length % 512));
-            System.out.println(totalBlocksRequired);
+            //System.out.println("file = " + new String(file, Charset.forName("UTF-8")));
+            //System.out.println((file.length / 512) + " " + (file.length % 512));
+            //System.out.println(totalBlocksRequired);
 
             if (totalBlocksRequired == 1 || currentBlock == totalBlocksRequired)
                 onLastBlock = true;
@@ -358,15 +379,21 @@ class Server implements Runnable
                 }
                 currentBlock++;
             }
-            else
+            else {
+                sendData = new byte[remainderLastBlock];
+                sendData[0]=0;
+                sendData[1]=3;
+                sendData[2]=blockNumBytes[0];
+                sendData[3]=blockNumBytes[1];
                 for (int i = 4; i < remainderLastBlock; i++) {
                     sendData[i] = file[(i - 4) + 512 * (totalBlocksRequired - 1)];
                     //System.out.print("Data" + i + "=" + sendData[i]);
                 }
+            }
 
             //send DATA packet to client
             DatagramPacket txPacket = new DatagramPacket(sendData,sendData.length,InetAddress.getLocalHost(),port);
-            txPacket = resizePacket(txPacket);
+            //txPacket = resizePacket(txPacket);
             readSocket.send(txPacket);
             outputText(txPacket, direction.OUT);
 
