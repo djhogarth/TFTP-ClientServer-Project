@@ -348,7 +348,6 @@ class Client {
             tempVector.addElement(buffer);
             //buffer/read file data here
 
-
             //stop if received packet does not have DATA opcode or DATA is less then 512 bytes
             if (receiveData[1] != 3) isValidPkt = false;
             else {

@@ -354,7 +354,8 @@ class Server implements Runnable
         int remainderLastBlock = (file.length % 512);
         int currentBlock = 1;
         boolean onLastBlock = false;
-
+        int j=0;
+        
         while(isValidFile) {//Loop to send DATA and receive ACK until DATA<512 bytes
             byte[] blockNumBytes= blockNumToBytes(blockNum++);
             byte[] sendData = new byte[DATA_SIZE];
@@ -372,28 +373,14 @@ class Server implements Runnable
             if (totalBlocksRequired == 1 || currentBlock == totalBlocksRequired)
                 onLastBlock = true;
 
-            //set data in packet here
-            if (!onLastBlock) {
-                for (int i = 4; i < DATA_SIZE; i++) {//4-515 are for 512 bytes of data
-                    sendData[i] = file[(i - 4) + 512 * (totalBlocksRequired - 1)];
-                }
-                currentBlock++;
-            }
-            else {
-                sendData = new byte[remainderLastBlock];
-                sendData[0]=0;
-                sendData[1]=3;
-                sendData[2]=blockNumBytes[0];
-                sendData[3]=blockNumBytes[1];
-                for (int i = 4; i < remainderLastBlock; i++) {
-                    sendData[i] = file[(i - 4) + 512 * (totalBlocksRequired - 1)];
-                    //System.out.print("Data" + i + "=" + sendData[i]);
-                }
-            }
 
+            for (int i = 4; i < DATA_SIZE && j<file.length; i++) {//4-515 are for 512 bytes of data
+                sendData[i] = file[j++];
+            }
+            
             //send DATA packet to client
             DatagramPacket txPacket = new DatagramPacket(sendData,sendData.length,InetAddress.getLocalHost(),port);
-            //txPacket = resizePacket(txPacket);
+            txPacket = resizePacket(txPacket);
             readSocket.send(txPacket);
             outputText(txPacket, direction.OUT);
 

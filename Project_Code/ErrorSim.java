@@ -38,6 +38,7 @@ class ErrorSim
         DatagramSocket clientSocket = new DatagramSocket();
         DatagramSocket serverSocket = new DatagramSocket();
         //serverSocket.setSoTimeout(5000);
+        int tempPort=0;
 
         try {
             clientSocket = new DatagramSocket(CLIENT_PORT);
@@ -61,27 +62,38 @@ class ErrorSim
             try {
                 DatagramPacket rxPacket = new DatagramPacket(rxData, rxData.length);
                 DatagramPacket txPacket;
-
+                
                 //Receive from CLIENT
                 clientSocket.receive(rxPacket);
                 rxPacket = resizePacket(rxPacket);
                 outputText(rxPacket, direction.IN, endhost.CLIENT);
-
+                
                 InetSocketAddress temp_add = (InetSocketAddress) rxPacket.getSocketAddress();
                 int client_port = temp_add.getPort();
-
-                //Send to SERVER
+               
+                
+                //Send to SERVER listener or last Thread
                 txPacket = rxPacket;
-                txPacket.setPort(SERVER_PORT);
+                if(rxData[1]==3||rxData[1]==4) {
+                	txPacket.setPort(tempPort);
+	            }
+                else {
+                	txPacket.setPort(SERVER_PORT);
+                }
                 serverSocket.send(txPacket);
                 outputText(txPacket, direction.OUT, endhost.SERVER);
-
-                //Receive from SERVER
-                rxPacket = new DatagramPacket(rxData, rxData.length);
-                serverSocket.receive(rxPacket);
-                rxPacket = resizePacket(rxPacket);
-                outputText(rxPacket, direction.IN, endhost.SERVER);
-
+                
+                
+	            //Receive from SERVER
+	            rxPacket = new DatagramPacket(rxData, rxData.length);
+	            serverSocket.receive(rxPacket);
+	            rxPacket = resizePacket(rxPacket);
+	            outputText(rxPacket, direction.IN, endhost.SERVER);
+                
+	            if(rxData[1]==3||rxData[1]==4) {
+	            	tempPort=rxPacket.getPort();
+	            }
+	            
                 //Send to CLIENT
                 txPacket = rxPacket;
                 txPacket.setPort(client_port);
