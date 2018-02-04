@@ -26,9 +26,9 @@
   3)Run Server program
   4)Run ErrorSim program
   5)Run Client program 
-  6)User input instructions below
+  6)User input example below
   
-  Working Directory = /home/me/IdeaProjects/FinalProject
+  Working Directory = /
   Enter file name: L
   Enter full file path: ./L
   Is it a (r)ead or (w)rite?: w
