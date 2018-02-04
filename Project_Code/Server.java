@@ -1,12 +1,11 @@
 /*
   FILENAME - Server.java
   ASSIGNMENT - Final Project - SYSC 3303
-  AUTHOR -
+  AUTHOR - GROUP 3 - W18
   DETAILS - A program that will receives DatagramPackets from IntHost
           - Based on the packet type, sends a response to IntHost
 */
 
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.*;
@@ -16,18 +15,21 @@ import java.util.Vector;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.Path;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 
 class Server implements Runnable
 {
 
-    //private static final int ERRORSIM_PORT = 69;
-    private static final int ERRORSIM_PORT = 9969;
+    private static final int ERRORSIM_PORT = 69;
+    //private static final int ERRORSIM_PORT = 9969;
     private static final int DATA_SIZE = 516;
 
     private DatagramSocket socket;
     private DatagramPacket packet;
     private byte[] rxData, txData;
     private boolean isListener = false;
+    private boolean quitSignal = false;
 
     //TFTP OPCODES
     public enum OPCodes {
@@ -54,7 +56,7 @@ class Server implements Runnable
 
         try {
             socket = new DatagramSocket(port);
-            socket.setSoTimeout(30000); // LISTENER timeouts after 30 seconds
+            //socket.setSoTimeout(30000); // LISTENER timeouts after 30 seconds
         }
         catch (SocketException se)
         {
@@ -73,6 +75,9 @@ class Server implements Runnable
     }
 
     //Essentially a pseudo-main method that runs all logic for the threads
+    //Two types of threads: LISTENERs and SENDERs
+    //Listeners will listen for any packet on port 69
+    //Senders are new threads that create new sockets to transmit data back to the ErrorSimulator
     public synchronized void run()
     {
         rxData = new byte[DATA_SIZE];
@@ -96,8 +101,6 @@ class Server implements Runnable
 
                 } catch (Exception e) {
                 	System.out.println("Server has timed out: terminating...");
-                    //System.out.println("failed to receive");
-                    //e.printStackTrace();
                     System.exit(1);
                 }
             }
@@ -112,7 +115,6 @@ class Server implements Runnable
                 try {
                     Thread sendReply = new Thread(new Server(rxPacket), "SENDER");
                     sendReply.start();
-                    //resetVars();
                 }
                 catch (Exception e)
                 {
@@ -122,10 +124,11 @@ class Server implements Runnable
             }
             else {
                 outputText(rxPacket, direction.IN);
-                //System.exit(1);
-                //socket.close();
                 //throw new ValidationException("Packet is not valid.");
             }
+
+            if (quitSignal)
+                System.exit(1);
         }
 
         //If the thread is a SENDER, run this code
@@ -135,8 +138,27 @@ class Server implements Runnable
             sendReply(this.packet, this.socket);
 
             //Close temp socket and thread
+
+            //Code used for user input
+            //Currently only accepts "q" to close the server process
+            BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
+            String line = "";
+
+            System.out.print("Would you like to (q)uit? ");
+            while (line.equalsIgnoreCase("q") == false) {
+                try { line = in.readLine(); }
+                catch (Exception e) {}
+            }
+            if (line.equalsIgnoreCase("q") == true)
+                quitSignal = true;
+
+            try { in.close(); } catch (Exception e) {}
+
             socket.close();
             Thread.currentThread().interrupt();
+
+            if (quitSignal)
+                System.exit(1);
         }
     }
 
@@ -149,7 +171,6 @@ class Server implements Runnable
         System.out.println("TFTP Server is running.\n");
 
         listener.start();
-
     }
 
     //A function that reads the text in each packet and displays its contents in ASCII and BYTES
@@ -293,17 +314,6 @@ class Server implements Runnable
             response[2] = 0;
             response[3] = 0;
         }
-
-        //outputText(txPacket, direction.OUT);
-
-        /*
-        try {
-            socket.send(txPacket);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        */
-
     }
     
     /*
@@ -367,10 +377,9 @@ class Server implements Runnable
 
     //A function that implements the RRQ of a TFTP server, takes as input the client's port and file name of requested file
     public synchronized void readRequest(int port,String filename) throws Exception {
-        //boolean isValidFile = true;
+
         int blockNum=1;
         DatagramSocket readSocket = new DatagramSocket();//new socket for RRQ
-
 
         Path path = Paths.get("./" + filename);
         byte[] file = Files.readAllBytes(path);
@@ -468,7 +477,6 @@ class Server implements Runnable
 
     //Packets are initialized with 100 Bytes of memory but don't actually use all the space
     //This function resizes a packet based on the length of its payload, conserving space
-    //**THIS FUNCTION MAY BE DEPRECATED IN FUTURE ITERATIONS**
     public synchronized static DatagramPacket resizePacket(DatagramPacket packet)
     {
         InetSocketAddress temp_add = (InetSocketAddress)packet.getSocketAddress();

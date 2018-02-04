@@ -1,25 +1,9 @@
-
 /*
   FILENAME - Client.java
   ASSIGNMENT - Final Project - SYSC 3303
-  AUTHOR - GROUP 3 - SYSC 3303 W18
+  AUTHOR - GROUP 3 - W18
   DETAILS - A program that will generate valid TFTP datagram packets and sends them to IntHost.java
 */
-
-/*
-       WRQ FLOW
-       Client -> WRQ -> Server
-       Server -> ACK BLK 0 -> Client
-       Client -> DATA BLK 1 -> Server
-       Server -> ACK BLK 1 -> Client
-       Repeats until Client sends last DATA pkt, Server sends a final ACK
-
-       RRQ FLOW
-       Client -> RRQ -> Server
-       Server -> DATA BLK 1 -> Client
-       Client -> ACK BLK 1 -> Server
-       Repeats until Server sends last DATA pkt, Client sends a final ACK
- */
 
 import java.io.*;
 import java.net.*;
@@ -36,8 +20,8 @@ class Client {
     DatagramPacket txPacket, rxPacket; // Two datagrams for tx/rx
     DatagramSocket socket; // Only need one socket since we never tx/rx simultaneously
 
-    //private static final int ERRORSIM_PORT = 23;
-    private static final int ERRORSIM_PORT = 9923;
+    private static final int ERRORSIM_PORT = 23;
+    //private static final int ERRORSIM_PORT = 9923;
     private static final int DATA_SIZE = 516;
 
     public InetAddress clientIP, errorSimIP, serverIP;
@@ -177,7 +161,7 @@ class Client {
                 try {
                     c.socket.send(c.txPacket);
                     c.receivedFile = c.readRequest(getPort(c.txPacket));
-                    saveFile(c.receivedFile);
+                    saveFile(c.receivedFile, c.filename);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -188,7 +172,8 @@ class Client {
         }
     }
 
-    public static void saveFile(Vector<byte[]> receivedFile)
+    //A function that takes a vector of any size and writes its bytes to a file
+    public static void saveFile(Vector<byte[]> receivedFile, String filename)
     {
         byte[] tempArray;
         int charCount = 0;
@@ -201,7 +186,7 @@ class Client {
         tempArray = new byte[charCount];
 
         String path = "./";
-        String outputName = "output.txt";
+        String outputName = "RRQ " + filename;
 
         int tempCount = 0;
 
@@ -222,10 +207,8 @@ class Client {
 
     //A function to create a new Datagram
     //Future updates to this code will implement the ability to create other types of TFTP packets
-    public static DatagramPacket newDatagram(InetAddress errorSimIP, OPCodes op, String filename) throws IOException {
+    public static DatagramPacket newDatagram(InetAddress errorSimIP, OPCodes op, String filename) {
         String mode = "NETascii";
-        // filename = "README.txt";
-
         DatagramPacket newPacket = makeRequest(mode, filename, op, errorSimIP);
         return newPacket;
     }
@@ -417,6 +400,7 @@ class Client {
         return resizedPacket;
     }
 
+    //Returns the a packet's port number
     public static int getPort(DatagramPacket p)
     {
         InetSocketAddress temp_add = (InetSocketAddress) p.getSocketAddress();

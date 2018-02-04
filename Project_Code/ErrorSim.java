@@ -1,7 +1,7 @@
 /*
   FILENAME - ErrorSim.java
   ASSIGNMENT - Final Project - SYSC 3303
-  AUTHOR -
+  AUTHOR - GROUP 3 - W18
   DETAILS - A program that will receives DatagramPackets from Client or Server and forwards them to the opposite host.
 */
 
@@ -10,10 +10,10 @@ import java.nio.charset.Charset;
 
 class ErrorSim
 {
-    //private static final int CLIENT_PORT = 23;
-    //private static final int SERVER_PORT = 69;
-    private static final int CLIENT_PORT = 9923;
-    private static final int SERVER_PORT = 9969;
+    private static final int CLIENT_PORT = 23;
+    private static final int SERVER_PORT = 69;
+    //private static final int CLIENT_PORT = 9923;
+    //private static final int SERVER_PORT = 9969;
     private static final int DATA_SIZE = 516;
 
     //Used to determine if a packet is inbound or outbound when displaying its text
@@ -184,6 +184,7 @@ class ErrorSim
         return resizedPacket;
     }
 
+    //Determines if an inbound packet is a W/R RQ packet
     public static boolean isRequest(DatagramPacket p)
     {
         byte[] header = p.getData();
