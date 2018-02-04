@@ -2,7 +2,7 @@
   FILENAME - Client.java
   ASSIGNMENT - Final Project - SYSC 3303
   AUTHOR - GROUP 3 - W18
-  DETAILS - A program that will generate valid TFTP datagram packets and sends them to IntHost.java
+  DETAILS - A program that will generate valid TFTP datagram packets and sends them to ErrorSim
 */
 
 import java.io.*;

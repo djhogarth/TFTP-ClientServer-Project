@@ -2,8 +2,8 @@
   FILENAME - Server.java
   ASSIGNMENT - Final Project - SYSC 3303
   AUTHOR - GROUP 3 - W18
-  DETAILS - A program that will receives DatagramPackets from IntHost
-          - Based on the packet type, sends a response to IntHost
+  DETAILS - A program that will receives DatagramPackets from ErrorSim
+          - Based on the packet type, sends a response to ErrorSim
 */
 
 import java.io.FileOutputStream;
@@ -219,7 +219,8 @@ class Server implements Runnable
         }
         System.out.println("\n-----------------------");
     }
-
+    
+    //A function that verifies that a packet is a valid TFTP packet
     public synchronized static boolean validatePacket(DatagramPacket packet)
     {
         //BYTES [9-126] WILL COUNT AS VALID CHARACTERS
@@ -269,7 +270,8 @@ class Server implements Runnable
 
         return isValid;
     }
-
+    
+    //A function that sends a initiates a RRQ or WRQ based a the received packet
     //packet = packet received from ErrorSim
     //socket = socket ErrorSim used to send the packet to Server
     public synchronized void sendReply(DatagramPacket packet, DatagramSocket socket)
