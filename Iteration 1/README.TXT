@@ -24,7 +24,7 @@
   1)Open new project in eclipse with code folder
   2)Open 3 consoles windows in eclipse.
   3)Run Server program
-  4)Run Host program
+  4)Run ErrorSim program
   5)Run Client program 
   6)User input instructions below
   
