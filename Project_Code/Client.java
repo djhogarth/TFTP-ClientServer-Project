@@ -20,8 +20,8 @@ class Client {
     DatagramPacket txPacket, rxPacket; // Two datagrams for tx/rx
     DatagramSocket socket; // Only need one socket since we never tx/rx simultaneously
 
-    private static final int ERRORSIM_PORT = 23;
-    //private static final int ERRORSIM_PORT = 9923;
+    //private static final int ERRORSIM_PORT = 23;
+    private static final int ERRORSIM_PORT = 9923;
     private static final int DATA_SIZE = 516;
 
     public InetAddress clientIP, errorSimIP, serverIP;
@@ -39,15 +39,10 @@ class Client {
         /*
         Error Codes
 
-        Value     Meaning
-        0         Not defined, see error message (if any).
-        1         File not found.
-        2         Access violation.
-        3         Disk full or allocation exceeded.
-        4         Illegal TFTP operation.
-        5         Unknown transfer ID.
-        6         File already exists.
-        7         No such user.
+           2 bytes  2 bytes       string    1 byte
+          ----------------------------------------
+   ERROR | 05    |  ErrorCode |   ErrMsg   |   0  |
+          ----------------------------------------
          */
     }
 

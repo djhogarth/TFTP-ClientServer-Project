@@ -6,6 +6,7 @@
           - Based on the packet type, sends a response to ErrorSim
 */
 
+import javax.xml.crypto.Data;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.*;
@@ -17,12 +18,13 @@ import java.nio.file.Paths;
 import java.nio.file.Path;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.io.File;
 
 class Server implements Runnable
 {
 
-    private static final int ERRORSIM_PORT = 69;
-    //private static final int ERRORSIM_PORT = 9969;
+    //private static final int ERRORSIM_PORT = 69;
+    private static final int ERRORSIM_PORT = 9969;
     private static final int DATA_SIZE = 516;
 
     private DatagramSocket socket;
@@ -105,7 +107,6 @@ class Server implements Runnable
                 }
             }
             rxPacket = resizePacket(rxPacket);
-            System.out.println("HERE");
             outputText(rxPacket, direction.IN);
 
             //Ensures inbound packets are formatted correctly
@@ -227,14 +228,34 @@ class Server implements Runnable
         //BYTE 10 == LF == Line Feed
         //ANYTHING ELSE IS "INVALID"
         boolean isValid = false;
+        boolean isRequest = false;
+        boolean isError = false;
         boolean filenameIsValid = true;
         boolean modeIsValid = true;
 
         //Counts the number of 0x0 in the packet (size of Vector) and their indexes in the packet (index values in Vector)
         Vector<Integer> hasZero = new Vector<Integer>();
 
-        if (packet.getData()[0] == 0 && (packet.getData()[1] == 1 || packet.getData()[1] == 2))
+        //If Packet is a RRQ or WRQ
+        if (packet.getData()[0] == 0 && (packet.getData()[1] == 1 || packet.getData()[1] == 2)) {
             isValid = true;
+            isRequest = true;
+        }
+
+        if (packet.getData()[0] == 0 && packet.getData()[1] == 5) {
+            isValid = true;
+            isError = true;
+        }
+
+        if (isError)
+        {
+            System.out.println("Packet is Error");
+        }
+
+        if (isRequest)
+        {
+            System.out.println("Packet is Request");
+        }
 
         if (isValid)
         {
@@ -270,6 +291,53 @@ class Server implements Runnable
 
         return isValid;
     }
+
+    public synchronized static String checkError(DatagramPacket packet)
+    {
+        String errorMessage = "No Error";
+        String msg0 = "Not defined, see error message (if any).";
+        String msg1 = "File not found.";                            // -- Iteration 2
+        String msg2 = "Access violation.";                          // -- Iteration 2
+        String msg3 = "Disk full or allocation exceeded.";          // -- Iteration 2
+        String msg4 = "Illegal TFTP operation.";
+        String msg5 = "Unknown transfer ID.";
+        String msg6 = "File already exists.";                       // -- Iteration 2
+        String msg7 = "No such user.";
+
+        byte[] data = packet.getData();
+
+        //Can do error 1 (file not found)
+        //Can do error 2 (access violation)
+        if (data[0] == 0 && data[1] == 1)
+        {
+            File f = new File("./" + getFilename(packet));
+            if(f.exists() && !f.isDirectory()) {
+                //System.out.println("File Exists!");
+            }
+            else
+            {
+                System.out.println(msg1); //File not found.
+                errorMessage = msg1;
+            }
+        }
+
+        //Can do error 2 (access violation)
+        //Can do error 3 (Disk full or allocation exceeded.)
+        //Can do error 7 (file already exists)
+        if (data[0] == 0 && data[1] == 2)
+        {
+
+        }
+
+        //Not sure what to check here
+        if (data[0] == 0 && data[1] == 3)
+        {
+
+        }
+
+        return errorMessage;
+
+    }
     
     //A function that sends a initiates a RRQ or WRQ based a the received packet
     //packet = packet received from ErrorSim
@@ -278,14 +346,7 @@ class Server implements Runnable
     {
         byte[] data = packet.getData();
         byte[] response = new byte[4];
-        String filename;
-
-        //Extract filename from packet
-        int i=2;
-        while(data[i]!=0) {
-            i++;
-        }
-        filename = new String(Arrays.copyOfRange(data, 2, i) , Charset.forName("UTF-8"));
+        String filename = getFilename(packet);
 
         //Extract ErrorSim socket's port from packet
         InetSocketAddress temp_add = (InetSocketAddress)packet.getSocketAddress();
@@ -295,7 +356,12 @@ class Server implements Runnable
         if (data[0] == 0 && data[1] == 1)       //IF PACKET IS RRQ
         {
             try {
-                readRequest(port, filename);
+                if (checkError(packet) == "No Error")
+                    readRequest(port, filename);
+                else
+                {
+                    sendError(packet);
+                }
             } catch (Exception e) {
                 // TODO Auto-generated catch block
                 e.printStackTrace();
@@ -304,7 +370,12 @@ class Server implements Runnable
         else if (data[0] == 0 && data[1] == 2)  //IF PACKET IS WRQ
         {
             try {
-                writeRequest(port, filename);
+                if (checkError(packet) == "No Error")
+                    writeRequest(port, filename);
+                else
+                {
+                    sendError(packet);
+                }
             } catch (Exception e) {
                 // TODO Auto-generated catch block
                 e.printStackTrace();
@@ -316,6 +387,47 @@ class Server implements Runnable
             response[2] = 0;
             response[3] = 0;
         }
+    }
+
+    public void sendError(DatagramPacket packet) throws Exception
+    {
+        DatagramSocket writeSocket = new DatagramSocket();
+        String error = checkError(packet);
+
+        byte[] sendData = new byte[DATA_SIZE];
+        sendData[0]=0;
+        sendData[1]=5;
+        sendData[2]=0;
+
+        if (error == "File not found.")
+            sendData[3]=1;
+
+        //Error Code
+        byte[] temp = error.getBytes();
+        int j = 4; //byte placeholder for header
+
+        for (int i = 0; i < error.getBytes().length; i++) {
+            sendData[j++] = temp[i];
+        }
+
+        //Add 0x0
+        sendData[j++] = 0;
+
+        //Resizing packet here for now
+        byte[] sendSmallData = new byte[j];
+        for (int i = 0; i < j; i++)
+        {
+            sendSmallData[i] = sendData[i];
+        }
+
+        //send DATA packet to client
+        DatagramPacket txPacket = new DatagramPacket(sendSmallData,sendSmallData.length,packet.getAddress(), getPort(packet));
+        txPacket = resizePacket(txPacket);
+        writeSocket.send(txPacket);
+        outputText(txPacket, direction.OUT);
+
+        System.out.println("ERROR Complete: TERMINATING SOCKET");
+        writeSocket.close();
     }
     
     /*
@@ -461,6 +573,8 @@ class Server implements Runnable
             }
         }
 
+        //Can do error checks here
+
         try (FileOutputStream fileOuputStream = new FileOutputStream(path + outputName)) {
             fileOuputStream.write(tempArray);
             fileOuputStream.close();
@@ -495,5 +609,27 @@ class Server implements Runnable
 
         DatagramPacket resizedPacket = new DatagramPacket(tempData, tempData.length, ip, port);
         return resizedPacket;
+    }
+
+    public static String getFilename(DatagramPacket packet)
+    {
+        byte[] data = packet.getData();
+
+        //Extract filename from packet
+        int i=2;
+        while(data[i]!=0) {
+            i++;
+        }
+        String filename = new String(Arrays.copyOfRange(data, 2, i) , Charset.forName("UTF-8"));
+
+        return filename;
+    }
+
+    //Returns the a packet's port number
+    public static int getPort(DatagramPacket p)
+    {
+        InetSocketAddress temp_add = (InetSocketAddress) p.getSocketAddress();
+        int port = temp_add.getPort();
+        return port;
     }
 }

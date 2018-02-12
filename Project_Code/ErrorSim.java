@@ -10,10 +10,10 @@ import java.nio.charset.Charset;
 
 class ErrorSim
 {
-    private static final int CLIENT_PORT = 23;
-    private static final int SERVER_PORT = 69;
-    //private static final int CLIENT_PORT = 9923;
-    //private static final int SERVER_PORT = 9969;
+    //private static final int CLIENT_PORT = 23;
+    //private static final int SERVER_PORT = 69;
+    private static final int CLIENT_PORT = 9923;
+    private static final int SERVER_PORT = 9969;
     private static final int DATA_SIZE = 516;
 
     //Used to determine if a packet is inbound or outbound when displaying its text
