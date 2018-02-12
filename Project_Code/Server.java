@@ -20,7 +20,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.File;
 
-class Server implements Runnable
+class Server extends CommonMethods implements Runnable
 {
 
     //private static final int ERRORSIM_PORT = 69;
@@ -107,7 +107,7 @@ class Server implements Runnable
                 }
             }
             rxPacket = resizePacket(rxPacket);
-            outputText(rxPacket, direction.IN);
+            outputText(rxPacket, CommonMethods.direction.IN);
 
             //Ensures inbound packets are formatted correctly
             //Once validated, creates a new SENDER thread and runs it
@@ -124,7 +124,7 @@ class Server implements Runnable
 
             }
             else {
-                outputText(rxPacket, direction.IN);
+                outputText(rxPacket, CommonMethods.direction.IN);
                 //throw new ValidationException("Packet is not valid.");
             }
 
@@ -172,53 +172,6 @@ class Server implements Runnable
         System.out.println("TFTP Server is running.\n");
 
         listener.start();
-    }
-
-    //A function that reads the text in each packet and displays its contents in ASCII and BYTES
-    //Future iterations will update this function for QUIET/VERBOSE options
-    public synchronized static void outputText(DatagramPacket packet, direction dir)
-    {
-        byte[] data = packet.getData();
-
-        if (dir == direction.IN)
-            System.out.println("--Inbound Packet Data from ErrorSim--");
-        else if (dir == direction.OUT)
-            System.out.println("--Outbound Packet Data to ErrorSim--");
-
-        //PACKET TYPE OUTPUT
-        if (data[0] == 0 && data[1] == 1)
-            System.out.println("OPCODE = READ [0x01]");
-        if (data[0] == 0 && data[1] == 2)
-            System.out.println("OPCODE = WRITE [0x02]");
-        if (data[0] == 0 && data[1] ==  3)
-            System.out.println("OPCODE = DATA [0x03]");
-        if (data[0] == 0 && data[1] ==  4)
-            System.out.println("OPCODE = ACK [0x04]");
-        if (data[0] == 0 && data[1] ==  5)
-            System.out.println("OPCODE = ERROR [0x05]");
-
-        //MESSAGE OUTPUT
-        String ascii = new String(data, Charset.forName("UTF-8"));
-        ascii = ascii.substring(4, ascii.length());
-        if (ascii.length() > 0) {
-            System.out.println("MSG LENGTH = " + ascii.length());
-            System.out.println("MESSAGE = ");
-            System.out.println(ascii);
-        }
-        else
-            System.out.println("MESSAGE = NULL");
-
-        //BYTE OUTPUT
-        //Confirm output with - https://www.branah.com/ascii-converter
-        System.out.println("BYTES = ");
-        for (int j = 0; j < data.length; j++) {
-            System.out.print(data[j]);
-            if (j % 1 == 0 && j != 0)
-                System.out.print(" ");
-            if (j == 0)
-                System.out.print(" ");
-        }
-        System.out.println("\n-----------------------");
     }
     
     //A function that verifies that a packet is a valid TFTP packet
@@ -424,7 +377,7 @@ class Server implements Runnable
         DatagramPacket txPacket = new DatagramPacket(sendSmallData,sendSmallData.length,packet.getAddress(), getPort(packet));
         txPacket = resizePacket(txPacket);
         writeSocket.send(txPacket);
-        outputText(txPacket, direction.OUT);
+        outputText(txPacket, CommonMethods.direction.OUT);
 
         System.out.println("ERROR Complete: TERMINATING SOCKET");
         writeSocket.close();
@@ -450,7 +403,7 @@ class Server implements Runnable
             //send ACK packet to Client
             DatagramPacket txPacket = new DatagramPacket(sendData,sendData.length,InetAddress.getLocalHost(),port);
             writeSocket.send(txPacket);
-            outputText(txPacket, direction.OUT);   
+            outputText(txPacket, CommonMethods.direction.OUT);   
             
             if(isValidFile) {
 	            //receive DATA packet from Client
@@ -458,7 +411,7 @@ class Server implements Runnable
 	            DatagramPacket rxPacket = new DatagramPacket(receiveData, receiveData.length);
 	            writeSocket.receive(rxPacket);
 	            rxPacket = resizePacket(rxPacket);
-	            outputText(rxPacket, direction.IN);
+	            outputText(rxPacket, CommonMethods.direction.IN);
 	
 	            byte[] buffer = new byte[rxPacket.getLength() - 4];
 	
@@ -536,13 +489,13 @@ class Server implements Runnable
             DatagramPacket txPacket = new DatagramPacket(sendData,sendData.length,InetAddress.getLocalHost(),port);
             txPacket = resizePacket(txPacket);
             readSocket.send(txPacket);
-            outputText(txPacket, direction.OUT);
+            outputText(txPacket, CommonMethods.direction.OUT);
 
             byte[] receiveData = new byte[4];
             DatagramPacket rxPacket = new DatagramPacket(receiveData, receiveData.length);
             readSocket.receive(rxPacket);
             rxPacket = resizePacket(rxPacket);
-            outputText(rxPacket, direction.IN);
+            outputText(rxPacket, CommonMethods.direction.IN);
         }
         System.out.println("RRQ Complete: TERMINATING SOCKET");
         readSocket.close();
@@ -575,61 +528,12 @@ class Server implements Runnable
 
         //Can do error checks here
 
-        try (FileOutputStream fileOuputStream = new FileOutputStream(path + outputName)) {
-            fileOuputStream.write(tempArray);
-            fileOuputStream.close();
+        try (FileOutputStream fileOutputStream = new FileOutputStream(path + outputName)) {
+            fileOutputStream.write(tempArray);
+            fileOutputStream.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-    }
-    
-    //A function to convert an int into an array of 2 bytes
-    public static byte[] blockNumToBytes(int blockNum) {
-        int b1 = blockNum / 256;
-        int b2 = blockNum % 256;
-        return new byte[] {(byte)b1,(byte)b2};
     }
 
-    //Packets are initialized with 100 Bytes of memory but don't actually use all the space
-    //This function resizes a packet based on the length of its payload, conserving space
-    public synchronized static DatagramPacket resizePacket(DatagramPacket packet)
-    {
-        InetSocketAddress temp_add = (InetSocketAddress)packet.getSocketAddress();
-        int port = temp_add.getPort();
-        InetAddress ip = packet.getAddress();
-        int length = packet.getLength();
-
-        byte[] tempData = new byte[length];
-
-        for (int i = 0; i < length; i++)
-        {
-            tempData[i] = packet.getData()[i];
-        }
-
-        DatagramPacket resizedPacket = new DatagramPacket(tempData, tempData.length, ip, port);
-        return resizedPacket;
-    }
-
-    public static String getFilename(DatagramPacket packet)
-    {
-        byte[] data = packet.getData();
-
-        //Extract filename from packet
-        int i=2;
-        while(data[i]!=0) {
-            i++;
-        }
-        String filename = new String(Arrays.copyOfRange(data, 2, i) , Charset.forName("UTF-8"));
-
-        return filename;
-    }
-
-    //Returns the a packet's port number
-    public static int getPort(DatagramPacket p)
-    {
-        InetSocketAddress temp_add = (InetSocketAddress) p.getSocketAddress();
-        int port = temp_add.getPort();
-        return port;
-    }
 }

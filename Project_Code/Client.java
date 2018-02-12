@@ -15,7 +15,7 @@ import java.util.Scanner;
 import java.util.Vector;
 
 
-class Client {
+class Client extends CommonMethods{
 
     DatagramPacket txPacket, rxPacket; // Two datagrams for tx/rx
     DatagramSocket socket; // Only need one socket since we never tx/rx simultaneously
@@ -35,15 +35,6 @@ class Client {
         DATA,   //0x03
         ACK,    //0x04
         ERROR   //0x05
-
-        /*
-        Error Codes
-
-           2 bytes  2 bytes       string    1 byte
-          ----------------------------------------
-   ERROR | 05    |  ErrorCode |   ErrMsg   |   0  |
-          ----------------------------------------
-         */
     }
 
     //Used to determine if a packet is inbound or outbound when displaying its text
@@ -231,7 +222,7 @@ class Client {
             rxPacket = new DatagramPacket(receiveData, receiveData.length);
             this.socket.receive(rxPacket);
             rxPacket = resizePacket(rxPacket);
-            outputText(rxPacket, direction.IN);
+            outputText(rxPacket, CommonMethods.direction.IN);
             byte[] buffer = new byte[rxPacket.getLength() - 4];
 
             for (int i = 4; i < rxPacket.getLength(); i++)
@@ -248,7 +239,7 @@ class Client {
                 byte[] sendData = new byte[]{0, 4, receiveData[2], receiveData[3]};
                 txPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getLocalHost(), port);
                 this.socket.send(this.txPacket);
-                outputText(txPacket, direction.OUT);
+                outputText(txPacket, CommonMethods.direction.OUT);
 
                 if (rxPacket.getLength() < DATA_SIZE) isValidPkt = false;
             }
@@ -284,7 +275,7 @@ class Client {
             rxPacket = new DatagramPacket(receiveData, receiveData.length);
             this.socket.receive(rxPacket);
             rxPacket = resizePacket(rxPacket);
-            outputText(rxPacket, direction.IN);
+            outputText(rxPacket, CommonMethods.direction.IN);
 
             //create send DATA
             byte[] blockNumBytes = blockNumToBytes(blockNum++);
@@ -321,85 +312,7 @@ class Client {
             txPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getLocalHost(), port);
             this.socket.send(this.txPacket);
             txPacket = resizePacket(txPacket);
-            outputText(txPacket, direction.OUT);
+            outputText(txPacket, CommonMethods.direction.OUT);
         }
-    }
-
-    //A function to convert an int into an array of 2 bytes
-    public static byte[] blockNumToBytes(int blockNum) {
-        int b1 = blockNum / 256;
-        int b2 = blockNum % 256;
-        return new byte[]{(byte) b1, (byte) b2};
-    }
-
-    //A function that reads the text in each packet and displays its contents in ASCII and BYTES
-    public static void outputText(DatagramPacket packet, direction dir) {
-
-        byte[] data = packet.getData();
-
-        if (dir == direction.IN)
-            System.out.println("--Inbound Packet Data from ErrorSim--");
-        else if (dir == direction.OUT)
-            System.out.println("--Outbound Packet Data to ErrorSim--");
-
-        //PACKET TYPE OUTPUT
-        if (data[0] == 0 && data[1] == 1)
-            System.out.println("OPCODE = READ [0x01]");
-        if (data[0] == 0 && data[1] == 2)
-            System.out.println("OPCODE = WRITE [0x02]");
-        if (data[0] == 0 && data[1] ==  3)
-            System.out.println("OPCODE = DATA [0x03]");
-        if (data[0] == 0 && data[1] ==  4)
-            System.out.println("OPCODE = ACK [0x04]");
-        if (data[0] == 0 && data[1] ==  5)
-            System.out.println("OPCODE = ERROR [0x05]");
-
-        //MESSAGE OUTPUT
-        String ascii = new String(data, Charset.forName("UTF-8"));
-        ascii = ascii.substring(4, ascii.length());
-        if (ascii.length() > 0) {
-            System.out.println("MSG LENGTH = " + ascii.length());
-            System.out.println("MESSAGE = ");
-            System.out.println(ascii);
-        }
-        else
-            System.out.println("MESSAGE = NULL");
-
-        //BYTE OUTPUT
-        //Confirm output with - https://www.branah.com/ascii-converter
-        System.out.println("BYTES = ");
-        for (int j = 0; j < data.length; j++) {
-            System.out.print(data[j]);
-            if (j % 1 == 0 && j != 0)
-                System.out.print(" ");
-            if (j == 0)
-                System.out.print(" ");
-        }
-        System.out.println("\n-----------------------");
-    }
-
-    //Packets are initialized with 100 Bytes of memory but don't actually use all the space
-    //This function resizes a packet based on the length of its payload, conserving space
-    public static DatagramPacket resizePacket(DatagramPacket packet) {
-        int port = getPort(packet);
-        InetAddress ip = packet.getAddress();
-        int length = packet.getLength();
-
-        byte[] tempData = new byte[length];
-
-        for (int i = 0; i < length; i++) {
-            tempData[i] = packet.getData()[i];
-        }
-
-        DatagramPacket resizedPacket = new DatagramPacket(tempData, tempData.length, ip, port);
-        return resizedPacket;
-    }
-
-    //Returns the a packet's port number
-    public static int getPort(DatagramPacket p)
-    {
-        InetSocketAddress temp_add = (InetSocketAddress) p.getSocketAddress();
-        int port = temp_add.getPort();
-        return port;
     }
 }

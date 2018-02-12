@@ -8,7 +8,7 @@
 import java.net.*;
 import java.nio.charset.Charset;
 
-class ErrorSim
+class ErrorSim extends CommonMethods
 {
     //private static final int CLIENT_PORT = 23;
     //private static final int SERVER_PORT = 69;
@@ -116,82 +116,5 @@ class ErrorSim
                 System.out.println("Did not receive a packet from CLIENT or SERVER");
             }
         }
-    }
-
-    //A function that reads the text in each packet and displays its contents in ASCII and BYTES
-    public static void outputText(DatagramPacket packet, direction dir, endhost host)
-    {
-        byte[] data = packet.getData();
-
-        if (dir == direction.IN)
-            System.out.println("--Inbound Packet Data from " + host + "--");
-        else if (dir == direction.OUT)
-            System.out.println("--Outbound Packet Data to " + host + "--");
-
-        //PACKET TYPE OUTPUT
-        if (data[0] == 0 && data[1] == 1)
-            System.out.println("OPCODE = READ [0x01]");
-        if (data[0] == 0 && data[1] == 2)
-            System.out.println("OPCODE = WRITE [0x02]");
-        if (data[0] == 0 && data[1] ==  3)
-            System.out.println("OPCODE = DATA [0x03]");
-        if (data[0] == 0 && data[1] ==  4)
-            System.out.println("OPCODE = ACK [0x04]");
-        if (data[0] == 0 && data[1] ==  5)
-            System.out.println("OPCODE = ERROR [0x05]");
-
-        //MESSAGE OUTPUT
-        String ascii = new String(data, Charset.forName("UTF-8"));
-        ascii = ascii.substring(4, ascii.length());
-        if (ascii.length() > 0) {
-            System.out.println("MSG LENGTH = " + ascii.length());
-            System.out.println("MESSAGE = ");
-            System.out.println(ascii);
-        }
-        else
-            System.out.println("MESSAGE = NULL");
-
-        //BYTE OUTPUT
-        //Confirm output with - https://www.branah.com/ascii-converter
-        System.out.println("BYTES = ");
-        for (int j = 0; j < data.length; j++) {
-            System.out.print(data[j]);
-            if (j % 1 == 0 && j != 0)
-                System.out.print(" ");
-            if (j == 0)
-                System.out.print(" ");
-        }
-        System.out.println("\n-----------------------");
-    }
-
-    //Packets are initialized with 100 Bytes of memory but don't actually use all the space
-    //This function resizes a packet based on the length of its payload, conserving space
-    public static DatagramPacket resizePacket(DatagramPacket packet)
-    {
-        InetSocketAddress temp_add = (InetSocketAddress)packet.getSocketAddress();
-        int port = temp_add.getPort();
-        InetAddress ip = packet.getAddress();
-        int length = packet.getLength();
-
-        byte[] tempData = new byte[length];
-
-        for (int i = 0; i < length; i++)
-        {
-            tempData[i] = packet.getData()[i];
-        }
-
-        DatagramPacket resizedPacket = new DatagramPacket(tempData, tempData.length, ip, port);
-        return resizedPacket;
-    }
-
-    //Determines if an inbound packet is a W/R RQ packet
-    public static boolean isRequest(DatagramPacket p)
-    {
-        byte[] header = p.getData();
-
-        if (header[0] == 0 && (header[1] == 1 || header[1] == 2))
-            return true;
-        else
-            return false;
     }
 }
