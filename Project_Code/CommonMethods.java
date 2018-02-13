@@ -3,8 +3,24 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.charset.Charset;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 public class CommonMethods {
+	
+	public static final Map<String, Integer> errorMap;
+    static
+    {
+    	errorMap = new HashMap<String, Integer>();
+    	errorMap.put("Not defined, see error message (if any).", 0);
+    	errorMap.put("File not found.", 1);
+    	errorMap.put("Access violation.", 2);
+    	errorMap.put("Disk full or allocation exceeded.", 3);
+    	errorMap.put("Illegal TFTP operation.", 4);
+    	errorMap.put("Unknown transfer ID.", 5);
+    	errorMap.put("File already exists.", 6);
+    	errorMap.put("No such user.", 7);
+    }
 
     public enum direction {
         IN, OUT;

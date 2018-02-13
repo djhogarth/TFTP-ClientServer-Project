@@ -276,9 +276,17 @@ class Server extends CommonMethods implements Runnable
 
         //Can do error 2 (access violation)
         //Can do error 3 (Disk full or allocation exceeded.)
-        //Can do error 7 (file already exists)
+        //Can do error 6 (file already exists)
         if (data[0] == 0 && data[1] == 2)
         {
+        	File f = new File("./WRQ " + getFilename(packet));
+            if(f.exists() && !f.isDirectory()) {
+            	System.out.println(msg6); //File already exists.
+                errorMessage = msg6;
+            }
+            else { 
+            	//System.out.println("No pre-existing file with same name.");
+            }
 
         }
 
@@ -351,9 +359,10 @@ class Server extends CommonMethods implements Runnable
         sendData[0]=0;
         sendData[1]=5;
         sendData[2]=0;
+        sendData[3]=errorMap.get(error).byteValue(); //Map the error code to the corresponding number
 
-        if (error == "File not found.")
-            sendData[3]=1;
+        //if (error == "File not found.")
+        //    sendData[3]=1;
 
         //Error Code
         byte[] temp = error.getBytes();

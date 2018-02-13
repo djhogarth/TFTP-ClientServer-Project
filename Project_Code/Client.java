@@ -142,6 +142,12 @@ class Client extends CommonMethods{
             }
 
             if ((c.operation).equals("read") || c.operation.equals("r")) {
+            	File f = new File("./RRQ " + c.filename);
+                if(f.exists() && !f.isDirectory()) {
+                	System.out.println("ERROR 06: The desired file already exists in this directory.");
+                	System.out.println("Closing client thread.");
+                    break;
+                }
                 System.out.println("Creating a RRQ Packet");
                 c.txPacket = newDatagram(c.errorSimIP, OPCodes.READ, c.filename);
                 try {
