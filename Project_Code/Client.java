@@ -25,8 +25,9 @@ class Client extends CommonMethods{
     private static final int DATA_SIZE = 516;
 
     public InetAddress clientIP, errorSimIP, serverIP;
-    public String pathname, filename, operation, continueOrQuit;
+    public String pathname, filename, operation, quit;
     public Vector<byte[]> receivedFile;
+    private boolean verboseOutput = false; //Quiet output when false
 
     //TFTP OPCODES
     public enum OPCodes {
@@ -43,6 +44,8 @@ class Client extends CommonMethods{
     }
 
     public Client() {
+
+        pathname = System.getProperty("user.dir");
 
         try {
             clientIP = InetAddress.getLocalHost();
@@ -114,53 +117,166 @@ class Client extends CommonMethods{
     // gets file path, file name and operation (read/write) from the user
     public static void userInput(Client c) throws IOException {
 
+        boolean startTransfer = false;
+        boolean showMainMenu = true;
+        boolean showOptionsMenu = false;
+        boolean inputValid = false;
+        boolean firstTime = true;
+        Scanner reader = new Scanner(System.in);  // Reading from System.in
+        String input = "";
+
+        String mainMenu = "Commands:\n(s)tart   - Start a file transfer" +
+                                   "\n(o)ptions - Change parameters for this application" +
+                                   "\n(q)uit    - Ends the program after all file transfers are completed" +
+                                   "\n";
+
+        String optionsMenu = "\nOptions:\n(pwd)       - Print Working Directory" +
+                                     "\n(chdir)     - Change Directory" +
+                                     "\n(v)erbose   - Verbose Output" +
+                                     "\n(q)uiet     - Quiet Output" +
+                                     "\n(b)ack      - Back to main menu" +
+                                     "\n";
+
         while (true) {
-            System.out.println("Working Directory = " + System.getProperty("user.dir"));
+            while (showMainMenu) {
+                inputValid = false;
 
-            Scanner reader = new Scanner(System.in);  // Reading from System.in
-            System.out.print("Enter file name: ");
-            c.filename = reader.nextLine(); // Scans the next token of the input as an int.
+                System.out.println(mainMenu);
 
-            System.out.print("Enter full file path: ");
-            c.pathname = reader.nextLine();
+                while (!inputValid) {
+                    System.out.print("Please choose an option: ");
+                    input = reader.nextLine();
+                    input = input.toLowerCase();
 
-            System.out.print("Is it a (r)ead or (w)rite?: ");
-            c.operation = reader.nextLine();
+                    switch (input) {
+                        case "s":
+                            startTransfer = true;
+                            inputValid = true;
+                            break;
+                        case "o":
+                            showOptionsMenu = true;
+                            inputValid = true;
+                            break;
+                        case "q":
+                            c.quit = "q";
+                            inputValid = true;
+                            break;
+                        default:
+                            System.out.println("The input is not valid.");
+                    }
+                }
 
-            System.out.print("If this is the last file, enter 'q'.  ");
-            c.continueOrQuit = reader.nextLine();
+                showMainMenu = false;
 
-            if ((c.operation).equals("write") || (c.operation).equals("w")) {
-                System.out.println("Creating a WRQ Packet");
-                c.txPacket = newDatagram(c.errorSimIP, OPCodes.WRITE, c.filename);
-                try {
-                    c.socket.send(c.txPacket);
-                    c.writeRequest(getPort(c.txPacket), c.filename);
-                } catch (Exception e) {
-                    e.printStackTrace();
+                if (c.quit == "q") {
+                    System.out.println("Ending application");
+                    System.exit(1);
                 }
             }
 
-            if ((c.operation).equals("read") || c.operation.equals("r")) {
-            	File f = new File("./RRQ " + c.filename);
-                if(f.exists() && !f.isDirectory()) {
-                	System.out.println("ERROR 06: The desired file already exists in this directory.");
-                	System.out.println("Closing client thread.");
-                    break;
-                }
-                System.out.println("Creating a RRQ Packet");
-                c.txPacket = newDatagram(c.errorSimIP, OPCodes.READ, c.filename);
-                try {
-                    c.socket.send(c.txPacket);
-                    c.receivedFile = c.readRequest(getPort(c.txPacket));
-                    saveFile(c.receivedFile, c.filename);
-                } catch (Exception e) {
-                    e.printStackTrace();
+            while (showOptionsMenu) {
+                inputValid = false;
+
+                System.out.println(optionsMenu);
+
+                while (!inputValid) {
+                    System.out.print("Please choose an option: ");
+                    input = reader.nextLine();
+                    input = input.toLowerCase();
+
+                    switch (input) {
+                        case "pwd":
+                            System.out.println("Working Directory = " + c.pathname);
+                            inputValid = true;
+                            break;
+                        case "chdir":
+                            System.out.print("New directory path: ");
+                            System.out.println("Not implemented yet");
+                            //System.out.print("Enter full file path: ");
+                            //c.pathname = reader.nextLine();
+                            inputValid = true;
+                            break;
+                        case "v":
+                            System.out.println("Toggled: Verbose Output");
+                            c.verboseOutput = true;
+                            inputValid = true;
+                            break;
+                        case "q":
+                            System.out.println("Toggled: Quiet Output");
+                            c.verboseOutput = false;
+                            inputValid = true;
+                            break;
+                        case "b":
+                            showMainMenu = true;
+                            showOptionsMenu = false;
+                            inputValid = true;
+                            break;
+                        default:
+                            System.out.println("The input is not valid.");
+                    }
                 }
             }
 
-            if ((c.continueOrQuit).equals("q"))
-                break;
+            while (startTransfer) {
+
+                inputValid = false;
+
+                if (!firstTime) {
+                    while (inputValid) {
+                        System.out.println("Would you like to go back to the menu? (y/n) ");
+                        input = reader.nextLine();
+
+                        if (input == "y") {
+                            showMainMenu = true;
+                            startTransfer = false;
+                            inputValid = true;
+                        } else if (input == "n") {
+                            inputValid = true;
+                        } else {
+                            System.out.println("The input is not valid.");
+                        }
+                    }
+                }
+                firstTime = false;
+
+                System.out.print("Enter file name: ");
+                input = reader.nextLine();
+                c.filename = input; // Scans the next token of the input as an int.
+
+                System.out.print("Is it a (r)ead or (w)rite?: ");
+                input = reader.nextLine();
+                c.operation = input;
+
+                if ((c.operation).equals("write") || (c.operation).equals("w")) {
+                    System.out.println("Creating a WRQ Packet");
+                    c.txPacket = newDatagram(c.errorSimIP, OPCodes.WRITE, c.filename);
+                    try {
+                        c.socket.send(c.txPacket);
+                        c.writeRequest(getPort(c.txPacket), c.filename);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+
+                if ((c.operation).equals("read") || c.operation.equals("r")) {
+                    File f = new File("./RRQ " + c.filename);
+                    if (f.exists() && !f.isDirectory()) {
+                        System.out.println("ERROR 06: The desired file already exists in this directory.");
+                        System.out.println("Closing client thread.");
+                        //break;
+                    }
+                    System.out.println("Creating a RRQ Packet");
+                    c.txPacket = newDatagram(c.errorSimIP, OPCodes.READ, c.filename);
+                    try {
+                        c.socket.send(c.txPacket);
+                        c.receivedFile = c.readRequest(getPort(c.txPacket));
+                        saveFile(c.receivedFile, c.filename);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+
+            }
         }
     }
 
