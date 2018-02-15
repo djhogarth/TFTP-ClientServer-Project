@@ -5,6 +5,8 @@
   DETAILS - A program that will generate valid TFTP datagram packets and sends them to ErrorSim
 */
 
+import jdk.nashorn.internal.runtime.ECMAException;
+
 import java.io.*;
 import java.net.*;
 import java.nio.charset.Charset;
@@ -206,11 +208,19 @@ class Client extends CommonMethods{
                         case "v":
                             System.out.println("Toggled: Verbose Output");
                             c.verboseOutput = true;
+                            try {
+                                sendOOB(true);
+                            }
+                            catch (Exception e) {}
                             inputValid = true;
                             break;
                         case "q":
                             System.out.println("Toggled: Quiet Output");
                             c.verboseOutput = false;
+                            try {
+                                sendOOB(false);
+                            }
+                            catch (Exception e) {}
                             inputValid = true;
                             break;
                         case "b":
@@ -416,7 +426,7 @@ class Client extends CommonMethods{
             rxPacket = new DatagramPacket(receiveData, receiveData.length);
             this.socket.receive(rxPacket);
             rxPacket = resizePacket(rxPacket);
-            outputText(rxPacket, CommonMethods.direction.IN);
+            outputText(rxPacket, CommonMethods.direction.IN, verboseOutput);
             byte[] buffer = new byte[rxPacket.getLength() - 4];
 
             //CHECK FOR ERRORS HERE
@@ -436,7 +446,7 @@ class Client extends CommonMethods{
                     byte[] sendData = new byte[]{0, 4, receiveData[2], receiveData[3]};
                     txPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getLocalHost(), port);
                     this.socket.send(this.txPacket);
-                    outputText(txPacket, CommonMethods.direction.OUT);
+                    outputText(txPacket, CommonMethods.direction.OUT, verboseOutput);
 
                     if (rxPacket.getLength() < DATA_SIZE) isValidPkt = false;
                 }
@@ -477,7 +487,7 @@ class Client extends CommonMethods{
             rxPacket = new DatagramPacket(receiveData, receiveData.length);
             this.socket.receive(rxPacket);
             rxPacket = resizePacket(rxPacket);
-            outputText(rxPacket, CommonMethods.direction.IN);
+            outputText(rxPacket, CommonMethods.direction.IN, verboseOutput);
 
             //create send DATA
             byte[] blockNumBytes = blockNumToBytes(blockNum++);
@@ -514,7 +524,31 @@ class Client extends CommonMethods{
             txPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getLocalHost(), port);
             this.socket.send(this.txPacket);
             txPacket = resizePacket(txPacket);
-            outputText(txPacket, CommonMethods.direction.OUT);
+            outputText(txPacket, CommonMethods.direction.OUT, verboseOutput);
         }
+    }
+
+    //Function for sending management packets out of band
+    //These packets will not be displayed in the output for any of the programs
+    public static void sendOOB(boolean verbose) throws Exception
+    {
+        //HEADER ==> OPCODE = 0x99 | BOOLEAN VERBOSE
+        byte[] header = new byte[3];
+
+        //OPCODE
+        header[0] = 9;
+        header[1] = 9;
+
+        if (verbose)
+            header[2] = 1; //verbose is toggled
+        else
+            header[2] = 0; //quiet is toggled
+
+
+        DatagramPacket OOBPacket = new DatagramPacket(header, header.length, InetAddress.getLocalHost(), ERRORSIM_PORT);
+        DatagramSocket OOBSocket = new DatagramSocket();
+        OOBSocket.send(OOBPacket);
+        OOBSocket.close();
+
     }
 }

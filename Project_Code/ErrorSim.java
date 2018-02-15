@@ -38,6 +38,9 @@ class ErrorSim extends CommonMethods
         DatagramSocket clientSocket = new DatagramSocket();
         DatagramSocket serverSocket = new DatagramSocket();
         //serverSocket.setSoTimeout(5000);
+
+        boolean verboseOutput = false;
+
         int tempPort=0;
 
         try {
@@ -72,7 +75,18 @@ class ErrorSim extends CommonMethods
                     lastDataPkt = false;
 
                 rxPacket = resizePacket(rxPacket);
-                outputText(rxPacket, direction.IN, endhost.CLIENT);
+
+                if (!isOOB(rxPacket)) {
+                    outputText(rxPacket, direction.IN, endhost.CLIENT, verboseOutput);
+                }
+                else
+                {
+                    lastDataPkt = true;
+                    if (rxPacket.getData()[2] == 0)
+                        verboseOutput = false;
+                    else
+                        verboseOutput = true;
+                }
 
                 InetSocketAddress temp_add = (InetSocketAddress) rxPacket.getSocketAddress();
                 int client_port = temp_add.getPort();
@@ -87,14 +101,23 @@ class ErrorSim extends CommonMethods
                     txPacket.setPort(SERVER_PORT);
                 }
                 serverSocket.send(txPacket);
-                outputText(txPacket, direction.OUT, endhost.SERVER);
+
+                if (!isOOB(txPacket)) {
+
+                    outputText(txPacket, direction.OUT, endhost.SERVER, verboseOutput);
+                }
+                else
+                {
+                    lastDataPkt = true;
+                }
+
 
                 if (!lastDataPkt) {
                     //Receive from SERVER
                     rxPacket = new DatagramPacket(rxData, rxData.length);
                     serverSocket.receive(rxPacket);
                     rxPacket = resizePacket(rxPacket);
-                    outputText(rxPacket, direction.IN, endhost.SERVER);
+                    outputText(rxPacket, direction.IN, endhost.SERVER, verboseOutput);
                     
                     if (rxPacket.getData().length < 512 && rxData[1]==3)
                         lastDataPkt = true;
@@ -108,7 +131,7 @@ class ErrorSim extends CommonMethods
                     txPacket.setPort(client_port);
                     txPacket.setAddress(InetAddress.getLocalHost());
                     clientSocket.send(txPacket);
-                    outputText(txPacket, direction.OUT, endhost.CLIENT);
+                    outputText(txPacket, direction.OUT, endhost.CLIENT, verboseOutput);
                 }
             }
             catch (SocketTimeoutException ste)

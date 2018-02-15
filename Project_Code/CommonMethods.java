@@ -1,4 +1,6 @@
+import javax.xml.crypto.Data;
 import java.net.DatagramPacket;
+import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.charset.Charset;
@@ -7,7 +9,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class CommonMethods {
-	
+
 	public static final Map<String, Integer> errorMap;
     static
     {
@@ -52,95 +54,106 @@ public class CommonMethods {
     }
 
     //A function that reads the text in each packet and displays its contents in ASCII and BYTES
-    public static void outputText(DatagramPacket packet, direction dir) {
+    public static void outputText(DatagramPacket packet, direction dir, boolean verbose) {
 
-        byte[] data = packet.getData();
+        if (verbose) {
+            byte[] data = packet.getData();
 
-        if (dir == direction.IN)
-            System.out.println("--Inbound Packet Data from ErrorSim--");
-        else if (dir == direction.OUT)
-            System.out.println("--Outbound Packet Data to ErrorSim--");
+            if (dir == direction.IN)
+                System.out.println("--Inbound Packet Data from ErrorSim--");
+            else if (dir == direction.OUT)
+                System.out.println("--Outbound Packet Data to ErrorSim--");
 
-        //PACKET TYPE OUTPUT
-        if (data[0] == 0 && data[1] == 1)
-            System.out.println("OPCODE = READ [0x01]");
-        if (data[0] == 0 && data[1] == 2)
-            System.out.println("OPCODE = WRITE [0x02]");
-        if (data[0] == 0 && data[1] ==  3)
-            System.out.println("OPCODE = DATA [0x03]");
-        if (data[0] == 0 && data[1] ==  4)
-            System.out.println("OPCODE = ACK [0x04]");
-        if (data[0] == 0 && data[1] ==  5)
-            System.out.println("OPCODE = ERROR [0x05]");
+            //PACKET TYPE OUTPUT
+            if (data[0] == 0 && data[1] == 1)
+                System.out.println("OPCODE = READ [0x01]");
+            if (data[0] == 0 && data[1] == 2)
+                System.out.println("OPCODE = WRITE [0x02]");
+            if (data[0] == 0 && data[1] == 3)
+                System.out.println("OPCODE = DATA [0x03]");
+            if (data[0] == 0 && data[1] == 4)
+                System.out.println("OPCODE = ACK [0x04]");
+            if (data[0] == 0 && data[1] == 5)
+                System.out.println("OPCODE = ERROR [0x05]");
 
-        //MESSAGE OUTPUT
-        String ascii = new String(data, Charset.forName("UTF-8"));
-        ascii = ascii.substring(4, ascii.length());
-        if (ascii.length() > 0) {
-            System.out.println("MSG LENGTH = " + ascii.length());
-            System.out.println("MESSAGE = ");
-            System.out.println(ascii);
+            //MESSAGE OUTPUT
+            String ascii = new String(data, Charset.forName("UTF-8"));
+            ascii = ascii.substring(4, ascii.length());
+            if (ascii.length() > 0) {
+                System.out.println("MSG LENGTH = " + ascii.length());
+                System.out.println("MESSAGE = ");
+                System.out.println(ascii);
+            } else
+                System.out.println("MESSAGE = NULL");
+
+            //BYTE OUTPUT
+            //Confirm output with - https://www.branah.com/ascii-converter
+            System.out.println("BYTES = ");
+            for (int j = 0; j < data.length; j++) {
+                System.out.print(data[j]);
+                if (j % 1 == 0 && j != 0)
+                    System.out.print(" ");
+                if (j == 0)
+                    System.out.print(" ");
+            }
+            System.out.println("\n-----------------------");
         }
         else
-            System.out.println("MESSAGE = NULL");
-
-        //BYTE OUTPUT
-        //Confirm output with - https://www.branah.com/ascii-converter
-        System.out.println("BYTES = ");
-        for (int j = 0; j < data.length; j++) {
-            System.out.print(data[j]);
-            if (j % 1 == 0 && j != 0)
-                System.out.print(" ");
-            if (j == 0)
-                System.out.print(" ");
+        {
+            System.out.println("So quiet...");
         }
-        System.out.println("\n-----------------------");
     }
 
     //A function that reads the text in each packet and displays its contents in ASCII and BYTES
-    public static void outputText(DatagramPacket packet, ErrorSim.direction dir, ErrorSim.endhost host)
+    //Used only by ErrorSim
+    public static void outputText(DatagramPacket packet, ErrorSim.direction dir, ErrorSim.endhost host, boolean verbose)
     {
-        byte[] data = packet.getData();
+        if (verbose) {
+            byte[] data = packet.getData();
 
-        if (dir == ErrorSim.direction.IN)
-            System.out.println("--Inbound Packet Data from " + host + "--");
-        else if (dir == ErrorSim.direction.OUT)
-            System.out.println("--Outbound Packet Data to " + host + "--");
+            if (dir == ErrorSim.direction.IN)
+                System.out.println("--Inbound Packet Data from " + host + "--");
+            else if (dir == ErrorSim.direction.OUT)
+                System.out.println("--Outbound Packet Data to " + host + "--");
 
-        //PACKET TYPE OUTPUT
-        if (data[0] == 0 && data[1] == 1)
-            System.out.println("OPCODE = READ [0x01]");
-        if (data[0] == 0 && data[1] == 2)
-            System.out.println("OPCODE = WRITE [0x02]");
-        if (data[0] == 0 && data[1] ==  3)
-            System.out.println("OPCODE = DATA [0x03]");
-        if (data[0] == 0 && data[1] ==  4)
-            System.out.println("OPCODE = ACK [0x04]");
-        if (data[0] == 0 && data[1] ==  5)
-            System.out.println("OPCODE = ERROR [0x05]");
+            //PACKET TYPE OUTPUT
+            if (data[0] == 0 && data[1] == 1)
+                System.out.println("OPCODE = READ [0x01]");
+            if (data[0] == 0 && data[1] == 2)
+                System.out.println("OPCODE = WRITE [0x02]");
+            if (data[0] == 0 && data[1] == 3)
+                System.out.println("OPCODE = DATA [0x03]");
+            if (data[0] == 0 && data[1] == 4)
+                System.out.println("OPCODE = ACK [0x04]");
+            if (data[0] == 0 && data[1] == 5)
+                System.out.println("OPCODE = ERROR [0x05]");
 
-        //MESSAGE OUTPUT
-        String ascii = new String(data, Charset.forName("UTF-8"));
-        ascii = ascii.substring(4, ascii.length());
-        if (ascii.length() > 0) {
-            System.out.println("MSG LENGTH = " + ascii.length());
-            System.out.println("MESSAGE = ");
-            System.out.println(ascii);
+            //MESSAGE OUTPUT
+            String ascii = new String(data, Charset.forName("UTF-8"));
+            ascii = ascii.substring(4, ascii.length());
+            if (ascii.length() > 0) {
+                System.out.println("MSG LENGTH = " + ascii.length());
+                System.out.println("MESSAGE = ");
+                System.out.println(ascii);
+            } else
+                System.out.println("MESSAGE = NULL");
+
+            //BYTE OUTPUT
+            //Confirm output with - https://www.branah.com/ascii-converter
+            System.out.println("BYTES = ");
+            for (int j = 0; j < data.length; j++) {
+                System.out.print(data[j]);
+                if (j % 1 == 0 && j != 0)
+                    System.out.print(" ");
+                if (j == 0)
+                    System.out.print(" ");
+            }
+            System.out.println("\n-----------------------");
         }
         else
-            System.out.println("MESSAGE = NULL");
-
-        //BYTE OUTPUT
-        //Confirm output with - https://www.branah.com/ascii-converter
-        System.out.println("BYTES = ");
-        for (int j = 0; j < data.length; j++) {
-            System.out.print(data[j]);
-            if (j % 1 == 0 && j != 0)
-                System.out.print(" ");
-            if (j == 0)
-                System.out.print(" ");
+        {
+            System.out.println("So quiet...");
         }
-        System.out.println("\n-----------------------");
     }
 
     //A function to convert an int into an array of 2 bytes
@@ -173,5 +186,20 @@ public class CommonMethods {
         String filename = new String(Arrays.copyOfRange(data, 2, i) , Charset.forName("UTF-8"));
 
         return filename;
+    }
+
+    public static boolean isOOB(DatagramPacket pkt)
+    {
+        byte[] data = pkt.getData();
+
+        if (data.length <= 3)
+        {
+            if (data[0] == 9 && data[1] == 9)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

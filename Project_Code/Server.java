@@ -32,6 +32,7 @@ class Server extends CommonMethods implements Runnable
     private byte[] rxData, txData;
     private boolean isListener = false;
     private boolean quitSignal = false;
+    private boolean verboseOutput = false;
 
     private String pathname;
 
@@ -72,12 +73,13 @@ class Server extends CommonMethods implements Runnable
 
     //Overloaded Constructor
     //Used to instantiate a SENDER
-    public Server(DatagramPacket packet) throws Exception
+    public Server(DatagramPacket packet, boolean v) throws Exception
     {
         this.pathname = System.getProperty("user.dir") + "/ServerFiles/";
         this.txData = new byte[DATA_SIZE];
         this.socket = new DatagramSocket();
         this.packet = packet;
+        this.verboseOutput = v;
     }
 
     //Essentially a pseudo-main method that runs all logic for the threads
@@ -111,14 +113,24 @@ class Server extends CommonMethods implements Runnable
                 }
             }
             rxPacket = resizePacket(rxPacket);
-            outputText(rxPacket, CommonMethods.direction.IN);
+
+            if (!isOOB(rxPacket)) {
+                outputText(rxPacket, CommonMethods.direction.IN, verboseOutput);
+            }
+            else
+            {
+                if (rxPacket.getData()[0] == 9 && rxPacket.getData()[1] == 9 && rxPacket.getData()[2] == 0)
+                    verboseOutput = false;
+                if (rxPacket.getData()[0] == 9 && rxPacket.getData()[1] == 9 && rxPacket.getData()[2] == 1)
+                    verboseOutput = true;
+            }
 
             //Ensures inbound packets are formatted correctly
             //Once validated, creates a new SENDER thread and runs it
-            if (validatePacket(rxPacket)) {
+            if (validatePacket(rxPacket) && !isOOB(rxPacket)) {
 
                 try {
-                    Thread sendReply = new Thread(new Server(rxPacket), "SENDER");
+                    Thread sendReply = new Thread(new Server(rxPacket, verboseOutput), "SENDER");
                     sendReply.start();
                 }
                 catch (Exception e)
@@ -128,7 +140,16 @@ class Server extends CommonMethods implements Runnable
 
             }
             else {
-                outputText(rxPacket, CommonMethods.direction.IN);
+                if (!isOOB(rxPacket)) {
+                    outputText(rxPacket, CommonMethods.direction.IN, verboseOutput);
+                }
+                else {
+
+                    if (rxPacket.getData()[0] == 9 && rxPacket.getData()[1] == 9 && rxPacket.getData()[2] == 0)
+                        verboseOutput = false;
+                    if (rxPacket.getData()[0] == 9 && rxPacket.getData()[1] == 9 && rxPacket.getData()[2] == 1)
+                        verboseOutput = true;
+                }
                 //throw new ValidationException("Packet is not valid.");
             }
 
@@ -206,12 +227,12 @@ class Server extends CommonMethods implements Runnable
 
         if (isError)
         {
-            System.out.println("Packet is Error");
+            //System.out.println("Packet is Error");
         }
 
         if (isRequest)
         {
-            System.out.println("Packet is Request");
+            //System.out.println("Packet is Request");
         }
 
         if (isValid)
@@ -391,7 +412,7 @@ class Server extends CommonMethods implements Runnable
         DatagramPacket txPacket = new DatagramPacket(sendSmallData,sendSmallData.length,packet.getAddress(), getPort(packet));
         txPacket = resizePacket(txPacket);
         writeSocket.send(txPacket);
-        outputText(txPacket, CommonMethods.direction.OUT);
+        outputText(txPacket, CommonMethods.direction.OUT, verboseOutput);
 
         System.out.println("ERROR Complete: TERMINATING SOCKET");
         writeSocket.close();
@@ -417,7 +438,7 @@ class Server extends CommonMethods implements Runnable
             //send ACK packet to Client
             DatagramPacket txPacket = new DatagramPacket(sendData,sendData.length,InetAddress.getLocalHost(),port);
             writeSocket.send(txPacket);
-            outputText(txPacket, CommonMethods.direction.OUT);   
+            outputText(txPacket, CommonMethods.direction.OUT, verboseOutput);
             
             if(isValidFile) {
 	            //receive DATA packet from Client
@@ -425,7 +446,7 @@ class Server extends CommonMethods implements Runnable
 	            DatagramPacket rxPacket = new DatagramPacket(receiveData, receiveData.length);
 	            writeSocket.receive(rxPacket);
 	            rxPacket = resizePacket(rxPacket);
-	            outputText(rxPacket, CommonMethods.direction.IN);
+	            outputText(rxPacket, CommonMethods.direction.IN, verboseOutput);
 	
 	            byte[] buffer = new byte[rxPacket.getLength() - 4];
 	
@@ -504,13 +525,13 @@ class Server extends CommonMethods implements Runnable
             DatagramPacket txPacket = new DatagramPacket(sendData,sendData.length,InetAddress.getLocalHost(),port);
             txPacket = resizePacket(txPacket);
             readSocket.send(txPacket);
-            outputText(txPacket, CommonMethods.direction.OUT);
+            outputText(txPacket, CommonMethods.direction.OUT, verboseOutput);
 
             byte[] receiveData = new byte[4];
             DatagramPacket rxPacket = new DatagramPacket(receiveData, receiveData.length);
             readSocket.receive(rxPacket);
             rxPacket = resizePacket(rxPacket);
-            outputText(rxPacket, CommonMethods.direction.IN);
+            outputText(rxPacket, CommonMethods.direction.IN, verboseOutput);
         }
         System.out.println("RRQ Complete: TERMINATING SOCKET");
         readSocket.close();
@@ -530,8 +551,8 @@ class Server extends CommonMethods implements Runnable
         tempArray = new byte[charCount];
 
         //String path = "./WRQ";
-        String path = "./ServerFiles/WRQ";
-        String outputName = " "+filename;
+        String path = "./ServerFiles/WRQ/";
+        String outputName = filename;
 
         int tempCount = 0;
 
