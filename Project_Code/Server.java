@@ -33,6 +33,8 @@ class Server extends CommonMethods implements Runnable
     private boolean isListener = false;
     private boolean quitSignal = false;
 
+    private String pathname;
+
     //TFTP OPCODES
     public enum OPCodes {
         READ,   //0x01
@@ -51,6 +53,7 @@ class Server extends CommonMethods implements Runnable
     //Used to instantiate a LISTENER
     public Server(int port) throws Exception
     {
+        this.pathname = System.getProperty("user.dir") + "/ServerFiles/";
         socket = new DatagramSocket();
 
         if (port == ERRORSIM_PORT)
@@ -71,6 +74,7 @@ class Server extends CommonMethods implements Runnable
     //Used to instantiate a SENDER
     public Server(DatagramPacket packet) throws Exception
     {
+        this.pathname = System.getProperty("user.dir") + "/ServerFiles/";
         this.txData = new byte[DATA_SIZE];
         this.socket = new DatagramSocket();
         this.packet = packet;
@@ -248,14 +252,15 @@ class Server extends CommonMethods implements Runnable
     public synchronized static String checkError(DatagramPacket packet)
     {
         String errorMessage = "No Error";
-        String msg0 = "Not defined, see error message (if any).";
-        String msg1 = "File not found.";                            // -- Iteration 2
-        String msg2 = "Access violation.";                          // -- Iteration 2
-        String msg3 = "Disk full or allocation exceeded.";          // -- Iteration 2
-        String msg4 = "Illegal TFTP operation.";
-        String msg5 = "Unknown transfer ID.";
-        String msg6 = "File already exists.";                       // -- Iteration 2
-        String msg7 = "No such user.";
+        String[] msg = new String[8];
+        msg[0] = "Not defined, see error message (if any).";
+        msg[1] = "File not found.";                            // -- Iteration 2
+        msg[2] = "Access violation.";                          // -- Iteration 2
+        msg[3] = "Disk full or allocation exceeded.";          // -- Iteration 2
+        msg[4] = "Illegal TFTP operation.";
+        msg[5] = "Unknown transfer ID.";
+        msg[6] = "File already exists.";                       // -- Iteration 2
+        msg[7] = "No such user.";
 
         byte[] data = packet.getData();
 
@@ -269,8 +274,8 @@ class Server extends CommonMethods implements Runnable
             }
             else
             {
-                System.out.println(msg1); //File not found.
-                errorMessage = msg1;
+                System.out.println(msg[1]); //File not found.
+                errorMessage = msg[1];
             }
         }
 
@@ -281,8 +286,8 @@ class Server extends CommonMethods implements Runnable
         {
         	File f = new File("./WRQ " + getFilename(packet));
             if(f.exists() && !f.isDirectory()) {
-            	System.out.println(msg6); //File already exists.
-                errorMessage = msg6;
+            	System.out.println(msg[6]); //File already exists.
+                errorMessage = msg[6];
             }
             else { 
             	//System.out.println("No pre-existing file with same name.");
@@ -457,7 +462,8 @@ class Server extends CommonMethods implements Runnable
         int blockNum=1;
         DatagramSocket readSocket = new DatagramSocket();//new socket for RRQ
 
-        Path path = Paths.get("./" + filename);
+        //Path path = Paths.get("./" + filename);
+        Path path = Paths.get(pathname + filename);
         byte[] file = Files.readAllBytes(path);
 
         int totalBlocksRequired = (file.length / 512) + 1;
@@ -523,7 +529,8 @@ class Server extends CommonMethods implements Runnable
 
         tempArray = new byte[charCount];
 
-        String path = "./WRQ";
+        //String path = "./WRQ";
+        String path = "./ServerFiles/WRQ";
         String outputName = " "+filename;
 
         int tempCount = 0;

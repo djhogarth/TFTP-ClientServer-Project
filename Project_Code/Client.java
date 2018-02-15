@@ -45,7 +45,7 @@ class Client extends CommonMethods{
 
     public Client() {
 
-        pathname = System.getProperty("user.dir");
+        pathname = System.getProperty("user.dir") + "/ClientFiles/";
 
         try {
             clientIP = InetAddress.getLocalHost();
@@ -131,11 +131,12 @@ class Client extends CommonMethods{
                                    "\n";
 
         String optionsMenu = "\nOptions:\n(pwd)       - Print Working Directory" +
-                                     "\n(chdir)     - Change Directory" +
-                                     "\n(v)erbose   - Verbose Output" +
-                                     "\n(q)uiet     - Quiet Output" +
-                                     "\n(b)ack      - Back to main menu" +
-                                     "\n";
+                                       "\n(cd)        - Change Directory" +
+                                       "\n(dir)       - List files in working directory" +
+                                       "\n(v)erbose   - Verbose Output" +
+                                       "\n(q)uiet     - Quiet Output" +
+                                       "\n(b)ack      - Back to main menu" +
+                                       "\n";
 
         while (true) {
             while (showMainMenu) {
@@ -152,6 +153,7 @@ class Client extends CommonMethods{
                         case "s":
                             startTransfer = true;
                             inputValid = true;
+                            firstTime = true;
                             break;
                         case "o":
                             showOptionsMenu = true;
@@ -189,11 +191,16 @@ class Client extends CommonMethods{
                             System.out.println("Working Directory = " + c.pathname);
                             inputValid = true;
                             break;
-                        case "chdir":
+                        case "cd":
                             System.out.print("New directory path: ");
                             System.out.println("Not implemented yet");
                             //System.out.print("Enter full file path: ");
                             //c.pathname = reader.nextLine();
+                            inputValid = true;
+                            break;
+                        case "dir":
+                            System.out.print("Displaying contents of " + c.pathname + ":");
+                            System.out.println("Not implemented yet");
                             inputValid = true;
                             break;
                         case "v":
@@ -222,66 +229,131 @@ class Client extends CommonMethods{
                 inputValid = false;
 
                 if (!firstTime) {
-                    while (inputValid) {
+                    while (!inputValid) {
                         System.out.println("Would you like to go back to the menu? (y/n) ");
                         input = reader.nextLine();
 
-                        if (input == "y") {
-                            showMainMenu = true;
-                            startTransfer = false;
-                            inputValid = true;
-                        } else if (input == "n") {
-                            inputValid = true;
-                        } else {
-                            System.out.println("The input is not valid.");
+                        switch (input) {
+                            case "y":
+                                showMainMenu = true;
+                                startTransfer = false;
+                                inputValid = true;
+                            case "n":
+                                inputValid = true;
+                                break;
+                            default:
+                                System.out.println("The input is not valid.");
                         }
                     }
                 }
                 firstTime = false;
 
-                System.out.print("Enter file name: ");
-                input = reader.nextLine();
-                c.filename = input; // Scans the next token of the input as an int.
+                if (!showMainMenu) {
+                    System.out.print("Enter file name: ");
+                    input = reader.nextLine();
+                    c.filename = input; // Scans the next token of the input as an int.
 
-                System.out.print("Is it a (r)ead or (w)rite?: ");
-                input = reader.nextLine();
-                c.operation = input;
+                    System.out.print("Is it a (r)ead or (w)rite?: ");
+                    input = reader.nextLine();
+                    c.operation = input;
 
-                if ((c.operation).equals("write") || (c.operation).equals("w")) {
-                    System.out.println("Creating a WRQ Packet");
-                    c.txPacket = newDatagram(c.errorSimIP, OPCodes.WRITE, c.filename);
-                    try {
-                        c.socket.send(c.txPacket);
-                        c.writeRequest(getPort(c.txPacket), c.filename);
-                    } catch (Exception e) {
-                        e.printStackTrace();
+                    if ((c.operation).equals("write") || (c.operation).equals("w")) {
+                        System.out.println("\n--Writing " + c.filename + " to Server.--\n");
+                        c.txPacket = newDatagram(c.errorSimIP, OPCodes.WRITE, c.filename);
+                        try {
+                            c.socket.send(c.txPacket);
+                            c.writeRequest(getPort(c.txPacket), c.filename);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
                     }
-                }
 
-                if ((c.operation).equals("read") || c.operation.equals("r")) {
-                    File f = new File("./RRQ " + c.filename);
-                    if (f.exists() && !f.isDirectory()) {
-                        System.out.println("ERROR 06: The desired file already exists in this directory.");
-                        System.out.println("Closing client thread.");
-                        //break;
+                    if ((c.operation).equals("read") || c.operation.equals("r")) {
+                        File f = new File(c.pathname + c.filename);
+                        if (f.exists() && !f.isDirectory()) {
+                            System.out.println("ERROR 06: The desired file already exists in this directory.");
+                            System.out.println("Closing client thread.");
+                            //break;
+                        }
+                        System.out.println("\n--Reading " + c.filename + " from Server.--\n");
+                        c.txPacket = newDatagram(c.errorSimIP, OPCodes.READ, c.filename);
+                        try {
+                            c.socket.send(c.txPacket);
+                            c.receivedFile = c.readRequest(getPort(c.txPacket));
+
+                            //CHECK ERRORS HERE
+                            if (c.receivedFile.size() != 0)
+                            {
+                                saveFile(c.receivedFile, c.filename, c);
+                            }
+
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
                     }
-                    System.out.println("Creating a RRQ Packet");
-                    c.txPacket = newDatagram(c.errorSimIP, OPCodes.READ, c.filename);
-                    try {
-                        c.socket.send(c.txPacket);
-                        c.receivedFile = c.readRequest(getPort(c.txPacket));
-                        saveFile(c.receivedFile, c.filename);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
+
+                    //startTransfer = true;
                 }
 
             }
         }
     }
 
+    public synchronized static String checkError(DatagramPacket packet)
+    {
+        String errorMessage = "No Error";
+        String[] msg = new String[8];
+        msg[0] = "Not defined, see error message (if any).";
+        msg[1] = "File not found.";                            // -- Iteration 2
+        msg[2] = "Access violation.";                          // -- Iteration 2
+        msg[3] = "Disk full or allocation exceeded.";          // -- Iteration 2
+        msg[4] = "Illegal TFTP operation.";
+        msg[5] = "Unknown transfer ID.";
+        msg[6] = "File already exists.";                       // -- Iteration 2
+        msg[7] = "No such user.";
+
+        byte[] data = packet.getData();
+        boolean validError = false;
+        String ascii = new String(data, Charset.forName("UTF-8"));
+        ascii = ascii.substring(4, ascii.length() - 1);
+
+        //Can do error 1 (file not found)
+        //Can do error 2 (access violation)
+        if (data[0] == 0 && data[1] == 1)
+        {
+
+        }
+
+        //Can do error 2 (access violation)
+        //Can do error 3 (Disk full or allocation exceeded.)
+        //Can do error 6 (file already exists)
+        if (data[0] == 0 && data[1] == 2)
+        {
+
+        }
+
+        //Not sure what to check here
+        if (data[0] == 0 && data[1] == 3)
+        {
+
+        }
+
+        //If we receive an Error Packet
+        if (data[0] == 0 && data[1] == 5)
+        {
+            for (int i = 0; i < msg.length; i++)
+            {
+                if (ascii.equals(msg[i]))
+                    errorMessage = ascii;
+            }
+        }
+
+        return errorMessage;
+
+    }
+
     //A function that takes a vector of any size and writes its bytes to a file
-    public static void saveFile(Vector<byte[]> receivedFile, String filename)
+    public static void saveFile(Vector<byte[]> receivedFile, String filename, Client c)
     {
         byte[] tempArray;
         int charCount = 0;
@@ -293,8 +365,8 @@ class Client extends CommonMethods{
 
         tempArray = new byte[charCount];
 
-        String path = "./";
-        String outputName = "RRQ " + filename;
+        String path = c.pathname; // "./"
+        String outputName = filename;
 
         int tempCount = 0;
 
@@ -347,23 +419,31 @@ class Client extends CommonMethods{
             outputText(rxPacket, CommonMethods.direction.IN);
             byte[] buffer = new byte[rxPacket.getLength() - 4];
 
-            for (int i = 4; i < rxPacket.getLength(); i++)
-            {
-                buffer[i - 4] = rxPacket.getData()[i];
+            //CHECK FOR ERRORS HERE
+            String error = checkError(rxPacket);
+            if (error == "No Error") {
+
+                for (int i = 4; i < rxPacket.getLength(); i++) {
+                    buffer[i - 4] = rxPacket.getData()[i];
+                }
+
+                tempVector.addElement(buffer);
+
+                //stop if received packet does not have DATA opcode or DATA is less then 512 bytes
+                if (receiveData[1] != 3) isValidPkt = false;
+                else {
+                    //create and send Ack packet with block # of received packet
+                    byte[] sendData = new byte[]{0, 4, receiveData[2], receiveData[3]};
+                    txPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getLocalHost(), port);
+                    this.socket.send(this.txPacket);
+                    outputText(txPacket, CommonMethods.direction.OUT);
+
+                    if (rxPacket.getLength() < DATA_SIZE) isValidPkt = false;
+                }
             }
-
-            tempVector.addElement(buffer);
-
-            //stop if received packet does not have DATA opcode or DATA is less then 512 bytes
-            if (receiveData[1] != 3) isValidPkt = false;
-            else {
-                //create and send Ack packet with block # of received packet
-                byte[] sendData = new byte[]{0, 4, receiveData[2], receiveData[3]};
-                txPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getLocalHost(), port);
-                this.socket.send(this.txPacket);
-                outputText(txPacket, CommonMethods.direction.OUT);
-
-                if (rxPacket.getLength() < DATA_SIZE) isValidPkt = false;
+            else
+            {
+                isValidPkt = false;
             }
         }
 
@@ -384,7 +464,7 @@ class Client extends CommonMethods{
         boolean isValidFile = true;
         int blockNum = 1;
         
-        Path path = Paths.get("./" + filename);
+        Path path = Paths.get(pathname + filename);
         byte[] file = Files.readAllBytes(path);
         int totalBlocksRequired = (file.length / 512) + 1;
         int remainderLastBlock = (file.length % 512);
