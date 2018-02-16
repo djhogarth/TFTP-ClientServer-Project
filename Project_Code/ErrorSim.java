@@ -17,16 +17,10 @@ class ErrorSim extends CommonMethods
     private static final int DATA_SIZE = 516;
 
     //Used to determine if a packet is inbound or outbound when displaying its text
-    public enum direction
-    {
-        IN, OUT;
-    }
-
-    //Used to detemine which host sent a packet to ErrorSim
-    public enum endhost
-    {
-        CLIENT, SERVER;
-    }
+    //public enum direction
+    //{
+    //    IN, OUT;
+    //}
 
     //Waits to receive packet from Client.java
     //Upon receipt, forwards it to Server.java

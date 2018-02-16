@@ -31,19 +31,11 @@ class Client extends CommonMethods{
     public Vector<byte[]> receivedFile;
     private boolean verboseOutput = false; //Quiet output when false
 
-    //TFTP OPCODES
-    public enum OPCodes {
-        READ,   //0x01
-        WRITE,  //0x02
-        DATA,   //0x03
-        ACK,    //0x04
-        ERROR   //0x05
-    }
-
+    
     //Used to determine if a packet is inbound or outbound when displaying its text
-    public enum direction {
-        IN, OUT;
-    }
+    //public enum direction {
+    //    IN, OUT;
+   // }
 
     public Client() {
 
@@ -137,6 +129,8 @@ class Client extends CommonMethods{
                                        "\n(dir)       - List files in working directory" +
                                        "\n(v)erbose   - Verbose Output" +
                                        "\n(q)uiet     - Quiet Output" +
+                                       "\n(ip)        - Change the server's IP address" +
+                                       "\n(m)ode      - Normal or Test Modes" +
                                        "\n(b)ack      - Back to main menu" +
                                        "\n";
 
@@ -195,14 +189,14 @@ class Client extends CommonMethods{
                             break;
                         case "cd":
                             System.out.print("New directory path: ");
-                            System.out.println("Not implemented yet");
+                            System.out.println("-- Not implemented yet --");
                             //System.out.print("Enter full file path: ");
                             //c.pathname = reader.nextLine();
                             inputValid = true;
                             break;
                         case "dir":
                             System.out.print("Displaying contents of " + c.pathname + ":");
-                            System.out.println("Not implemented yet");
+                            System.out.println("-- Not implemented yet --");
                             inputValid = true;
                             break;
                         case "v":
@@ -221,6 +215,16 @@ class Client extends CommonMethods{
                                 sendOOB(false);
                             }
                             catch (Exception e) {}
+                            inputValid = true;
+                            break;
+                        case "ip":
+                            System.out.print("Enter Server's IP Address: ");
+                            System.out.println("-- Not implemented yet --");
+                            inputValid = true;
+                            break;
+                        case "m":
+                            System.out.print("Choose (n)ormal or (t)est mode: ");
+                            System.out.println("-- Not implemented yet --");
                             inputValid = true;
                             break;
                         case "b":
@@ -272,6 +276,7 @@ class Client extends CommonMethods{
                         c.txPacket = newDatagram(c.errorSimIP, OPCodes.WRITE, c.filename);
                         try {
                             c.socket.send(c.txPacket);
+                            outputText(c.txPacket, direction.OUT, endhost.ERRORSIM, c.verboseOutput);
                             c.writeRequest(getPort(c.txPacket), c.filename);
                         } catch (Exception e) {
                             e.printStackTrace();
@@ -281,14 +286,15 @@ class Client extends CommonMethods{
                     if ((c.operation).equals("read") || c.operation.equals("r")) {
                         File f = new File(c.pathname + c.filename);
                         if (f.exists() && !f.isDirectory()) {
-                            System.out.println("ERROR 06: The desired file already exists in this directory.");
-                            System.out.println("Closing client thread.");
+                            //System.out.println("ERROR 06: The desired file already exists in this directory.");
+                            //System.out.println("Closing client thread.");
                             //break;
                         }
                         System.out.println("\n--Reading " + c.filename + " from Server.--\n");
                         c.txPacket = newDatagram(c.errorSimIP, OPCodes.READ, c.filename);
                         try {
                             c.socket.send(c.txPacket);
+                            outputText(c.txPacket, direction.OUT, endhost.ERRORSIM, c.verboseOutput);
                             c.receivedFile = c.readRequest(getPort(c.txPacket));
 
                             //CHECK ERRORS HERE
@@ -387,9 +393,9 @@ class Client extends CommonMethods{
             }
         }
 
-        try (FileOutputStream fileOuputStream = new FileOutputStream(path + outputName)) {
-            fileOuputStream.write(tempArray);
-            fileOuputStream.close();
+        try (FileOutputStream fileOutputStream = new FileOutputStream(path + outputName)) {
+            fileOutputStream.write(tempArray);
+            fileOutputStream.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -426,7 +432,7 @@ class Client extends CommonMethods{
             rxPacket = new DatagramPacket(receiveData, receiveData.length);
             this.socket.receive(rxPacket);
             rxPacket = resizePacket(rxPacket);
-            outputText(rxPacket, CommonMethods.direction.IN, verboseOutput);
+            outputText(rxPacket, direction.IN, endhost.ERRORSIM, verboseOutput);
             byte[] buffer = new byte[rxPacket.getLength() - 4];
 
             //CHECK FOR ERRORS HERE
@@ -446,7 +452,7 @@ class Client extends CommonMethods{
                     byte[] sendData = new byte[]{0, 4, receiveData[2], receiveData[3]};
                     txPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getLocalHost(), port);
                     this.socket.send(this.txPacket);
-                    outputText(txPacket, CommonMethods.direction.OUT, verboseOutput);
+                    outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
 
                     if (rxPacket.getLength() < DATA_SIZE) isValidPkt = false;
                 }
@@ -487,7 +493,7 @@ class Client extends CommonMethods{
             rxPacket = new DatagramPacket(receiveData, receiveData.length);
             this.socket.receive(rxPacket);
             rxPacket = resizePacket(rxPacket);
-            outputText(rxPacket, CommonMethods.direction.IN, verboseOutput);
+            outputText(rxPacket, direction.IN, endhost.ERRORSIM, verboseOutput);
 
             //create send DATA
             byte[] blockNumBytes = blockNumToBytes(blockNum++);
@@ -524,12 +530,14 @@ class Client extends CommonMethods{
             txPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getLocalHost(), port);
             this.socket.send(this.txPacket);
             txPacket = resizePacket(txPacket);
-            outputText(txPacket, CommonMethods.direction.OUT, verboseOutput);
+            outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
         }
     }
 
     //Function for sending management packets out of band
     //These packets will not be displayed in the output for any of the programs
+    //Used to synchronize parameters between all three programs
+    //Verbose/Quiet output, according to requirements, must be the same across all running apps
     public static void sendOOB(boolean verbose) throws Exception
     {
         //HEADER ==> OPCODE = 0x99 | BOOLEAN VERBOSE
