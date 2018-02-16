@@ -10,6 +10,8 @@ import java.util.Map;
 
 public class CommonMethods {
 
+    private static String tempFilename;
+
 	public static final Map<String, Integer> errorMap;
     static
     {
@@ -120,14 +122,16 @@ public class CommonMethods {
                 System.out.println("REQUEST MODE \t= " + mode);
             }
 
-            if (data[0] == 0 && (data[1] == 1 || data[1] == 2 || data[1] == 3))
+            if (data[0] == 0 && (data[1] == 1 || data[1] == 2))
             {
-                String fn = getFilename(packet);
-                System.out.println("FILENAME \t\t= " + fn);
+                tempFilename = getFilename(packet);
+                System.out.println("FILENAME \t\t= " + tempFilename);
             }
 
             if (data[0] == 0 && data[1] == 3)
             {
+                System.out.println("FILENAME \t\t= " + tempFilename);
+
                 String ascii = new String(data, Charset.forName("UTF-8"));
                 ascii = ascii.substring(4, ascii.length());
                 System.out.println("MESSAGE LENGTH \t= " + ascii.length());
