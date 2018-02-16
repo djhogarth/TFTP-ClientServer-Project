@@ -70,8 +70,14 @@ public class CommonMethods {
         return resizedPacket;
     }
 
-    //A function that reads the text in each packet and displays its contents in ASCII and BYTES
-    /*Verbose == Inbound/Outbound Packet
+    //A function that reads the text in each packet and displays its contents
+    /*
+    Quiet   ==   Inbound/Outbound Packet
+                 Packet Type
+                 Filename
+                 Error Code/Message
+
+    Verbose ==   Inbound/Outbound Packet
                  Timeouts/Re-transmissions       //Iteration 3
                  Inbound/Outbound Socket
                  Packet Type
@@ -81,8 +87,6 @@ public class CommonMethods {
                  Number of Data Bytes
                  Error Code/Message
      */
-
-    //A function that reads the text in each packet and displays its contents in ASCII and BYTES
     public static void outputText(DatagramPacket packet, direction dir, endhost host, boolean verbose)
     {
         if (verbose) {
@@ -115,7 +119,7 @@ public class CommonMethods {
                 System.out.println("OPCODE \t\t\t= ERROR [0x05]");
 
             //REQUEST MODE
-            if (data[0] == 0 && (data[1] == 1 && data[1] == 2)) {
+            if (data[0] == 0 && (data[1] == 1 || data[1] == 2)) {
                 String mode = new String(data, Charset.forName("UTF-8"));
                 mode = mode.substring(4, mode.length() - 1);
                 mode = mode.toLowerCase();
@@ -174,13 +178,45 @@ public class CommonMethods {
                     System.out.print(" ");
             }
             */
-
-            System.out.println("-----------------------");
         }
         else
         {
-            System.out.println("So quiet...");
+            byte[] data = packet.getData();
+
+            if (dir == direction.IN)
+                System.out.println("DIRECTION \t\t= Inbound Packet Data from " + host);
+            else if (dir == direction.OUT)
+                System.out.println("DIRECTION \t\t= Outbound Packet Data to " + host);
+
+            //PACKET TYPE OUTPUT
+            if (data[0] == 0 && data[1] == 1)
+                System.out.println("OPCODE \t\t\t= READ [0x01]");
+            if (data[0] == 0 && data[1] == 2)
+                System.out.println("OPCODE \t\t\t= WRITE [0x02]");
+            if (data[0] == 0 && data[1] == 3)
+                System.out.println("OPCODE \t\t\t= DATA [0x03]");
+            if (data[0] == 0 && data[1] == 4)
+                System.out.println("OPCODE \t\t\t= ACK [0x04]");
+            if (data[0] == 0 && data[1] == 5)
+                System.out.println("OPCODE \t\t\t= ERROR [0x05]");
+
+            if (data[0] == 0 && (data[1] == 1 || data[1] == 2))
+            {
+                tempFilename = getFilename(packet);
+                System.out.println("FILENAME \t\t= " + tempFilename);
+            }
+
+            if (data[0] == 0 && data[1] == 3) {
+                System.out.println("FILENAME \t\t= " + tempFilename);
+            }
+
+            if (data[0] == 0 && data[1] == 5)
+            {
+                String error = Server.checkError(packet)[0]; //using this for now
+                System.out.println("ERROR CODE \t= X = " + error);
+            }
         }
+        System.out.println("-----------------------");
     }
 
     //A function to convert an int into an array of 2 bytes
