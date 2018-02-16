@@ -46,9 +46,9 @@ class Server extends CommonMethods implements Runnable
     }
 
     //Used to determine if a packet is inbound or outbound when displaying its text
-    public enum direction {
-        IN, OUT;
-    }
+    //public enum direction {
+    //    IN, OUT;
+    //}
 
     //Overloaded Constructor
     //Used to instantiate a LISTENER
@@ -115,7 +115,7 @@ class Server extends CommonMethods implements Runnable
             rxPacket = resizePacket(rxPacket);
 
             if (!isOOB(rxPacket)) {
-                outputText(rxPacket, CommonMethods.direction.IN, verboseOutput);
+                outputText(rxPacket, direction.IN, endhost.ERRORSIM, verboseOutput);
             }
             else
             {
@@ -141,7 +141,7 @@ class Server extends CommonMethods implements Runnable
             }
             else {
                 if (!isOOB(rxPacket)) {
-                    outputText(rxPacket, CommonMethods.direction.IN, verboseOutput);
+                    outputText(rxPacket, direction.IN, endhost.ERRORSIM, verboseOutput);
                 }
                 else {
 
@@ -285,7 +285,7 @@ class Server extends CommonMethods implements Runnable
         msg[5] = "Unknown transfer ID.";
         msg[6] = "File already exists.";                       // -- Iteration 2
         msg[7] = "No such user.";
-        
+
         byte[] data = packet.getData();
 
         //Can do error 1 (file not found)
@@ -299,9 +299,9 @@ class Server extends CommonMethods implements Runnable
             else
             {
                 System.out.println(msg[1]); //File not found.
+                //errorMessage = msg[1];
                 error[0] = msg[1];
                 error[1] = "1";
-                
             }
         }
 
@@ -313,7 +313,8 @@ class Server extends CommonMethods implements Runnable
         	File f = new File("./WRQ " + getFilename(packet));
             if(f.exists() && !f.isDirectory()) {
             	System.out.println(msg[6]); //File already exists.
-                error[0]= msg[6];
+                //errorMessage = msg[6];
+                error[0] = msg[6];
                 error[1] = "6";
             }
             else { 
@@ -329,6 +330,7 @@ class Server extends CommonMethods implements Runnable
         }
 
         return error;
+        //return errorMessage;
 
     }
     
@@ -385,10 +387,18 @@ class Server extends CommonMethods implements Runnable
     public void sendError(DatagramPacket packet) throws Exception
     {
         DatagramSocket writeSocket = new DatagramSocket();
+        //String error = checkError(packet);
         String errorMessage = checkError(packet)[0];
         int errorCode = Integer.parseInt(checkError(packet)[1]);
         byte[] temp = errorMessage.getBytes();
-        
+
+        /*
+        byte[] sendData = new byte[DATA_SIZE];
+        sendData[0]=0;
+        sendData[1]=5;
+        sendData[2]=0;
+        sendData[3]=errorMap.get(error).byteValue(); //Map the error code to the corresponding number
+        */
 
         byte[] sendData = new byte[4 + errorMessage.length() + 1];
         sendData[0]=0; // error opcode byte
@@ -399,21 +409,32 @@ class Server extends CommonMethods implements Runnable
         //if (error == "File not found.")
         //    sendData[3]=1;
 
+        //Error Code
+        //byte[] temp = error.getBytes();
+        //int j = 4; //byte placeholder for header
+
         // Add errorMessage
         System.arraycopy(temp, 0, sendData, 4, temp.length);
-        
+
         //Add 0x0
         sendData[4 + errorMessage.length()] = 0;
-        
-      //  int j = 4; //byte placeholder for header
 
-       // for (int i = 0; i < temp.length; i++) {
-     //       sendData[j++] = temp[i];
-      //  }
+        //int j = 4; //byte placeholder for header
 
-        
+        //for (int i = 0; i < error.getBytes().length; i++) {
+        //    sendData[j++] = temp[i];
+        //}
+
+        // for (int i = 0; i < temp.length; i++) {
+        //       sendData[j++] = temp[i];
+        //  }
+
+        //Add 0x0
+        //sendData[j++] = 0;
 
         //Resizing packet here for now
+        //byte[] sendSmallData = new byte[j];
+        //for (int i = 0; i < j; i++)
         byte[] sendSmallData = new byte[sendData.length];
         for (int i = 0; i < sendData.length; i++)
         {
@@ -424,7 +445,7 @@ class Server extends CommonMethods implements Runnable
         DatagramPacket txPacket = new DatagramPacket(sendSmallData,sendSmallData.length,packet.getAddress(), getPort(packet));
         txPacket = resizePacket(txPacket);
         writeSocket.send(txPacket);
-        outputText(txPacket, CommonMethods.direction.OUT, verboseOutput);
+        outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
 
         System.out.println("ERROR Complete: TERMINATING SOCKET");
         writeSocket.close();
@@ -450,7 +471,7 @@ class Server extends CommonMethods implements Runnable
             //send ACK packet to Client
             DatagramPacket txPacket = new DatagramPacket(sendData,sendData.length,InetAddress.getLocalHost(),port);
             writeSocket.send(txPacket);
-            outputText(txPacket, CommonMethods.direction.OUT, verboseOutput);
+            outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
             
             if(isValidFile) {
 	            //receive DATA packet from Client
@@ -458,7 +479,7 @@ class Server extends CommonMethods implements Runnable
 	            DatagramPacket rxPacket = new DatagramPacket(receiveData, receiveData.length);
 	            writeSocket.receive(rxPacket);
 	            rxPacket = resizePacket(rxPacket);
-	            outputText(rxPacket, CommonMethods.direction.IN, verboseOutput);
+	            outputText(rxPacket, direction.IN, endhost.ERRORSIM, verboseOutput);
 	
 	            byte[] buffer = new byte[rxPacket.getLength() - 4];
 	
@@ -537,13 +558,13 @@ class Server extends CommonMethods implements Runnable
             DatagramPacket txPacket = new DatagramPacket(sendData,sendData.length,InetAddress.getLocalHost(),port);
             txPacket = resizePacket(txPacket);
             readSocket.send(txPacket);
-            outputText(txPacket, CommonMethods.direction.OUT, verboseOutput);
+            outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
 
             byte[] receiveData = new byte[4];
             DatagramPacket rxPacket = new DatagramPacket(receiveData, receiveData.length);
             readSocket.receive(rxPacket);
             rxPacket = resizePacket(rxPacket);
-            outputText(rxPacket, CommonMethods.direction.IN, verboseOutput);
+            outputText(rxPacket, direction.IN, endhost.ERRORSIM, verboseOutput);
         }
         System.out.println("RRQ Complete: TERMINATING SOCKET");
         readSocket.close();
