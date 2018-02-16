@@ -189,14 +189,14 @@ class Client extends CommonMethods{
                             break;
                         case "cd":
                             System.out.print("New directory path: ");
-                            System.out.println("Not implemented yet");
+                            System.out.println("-- Not implemented yet --");
                             //System.out.print("Enter full file path: ");
                             //c.pathname = reader.nextLine();
                             inputValid = true;
                             break;
                         case "dir":
                             System.out.print("Displaying contents of " + c.pathname + ":");
-                            System.out.println("Not implemented yet");
+                            System.out.println("-- Not implemented yet --");
                             inputValid = true;
                             break;
                         case "v":
@@ -215,6 +215,16 @@ class Client extends CommonMethods{
                                 sendOOB(false);
                             }
                             catch (Exception e) {}
+                            inputValid = true;
+                            break;
+                        case "ip":
+                            System.out.print("Enter Server's IP Address: ");
+                            System.out.println("-- Not implemented yet --");
+                            inputValid = true;
+                            break;
+                        case "m":
+                            System.out.print("Choose (n)ormal or (t)est mode: ");
+                            System.out.println("-- Not implemented yet --");
                             inputValid = true;
                             break;
                         case "b":
