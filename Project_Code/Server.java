@@ -270,9 +270,12 @@ class Server extends CommonMethods implements Runnable
         return isValid;
     }
 
-    public synchronized static String checkError(DatagramPacket packet)
+    public synchronized static String[] checkError(DatagramPacket packet)
     {
         String errorMessage = "No Error";
+        String[] error = new String[2]; // error[0] = errorMessage error[1] = errorCode
+        error[0] = errorMessage;
+        error[1] = "0";
         String[] msg = new String[8];
         msg[0] = "Not defined, see error message (if any).";
         msg[1] = "File not found.";                            // -- Iteration 2
@@ -282,7 +285,7 @@ class Server extends CommonMethods implements Runnable
         msg[5] = "Unknown transfer ID.";
         msg[6] = "File already exists.";                       // -- Iteration 2
         msg[7] = "No such user.";
-
+        
         byte[] data = packet.getData();
 
         //Can do error 1 (file not found)
@@ -296,7 +299,9 @@ class Server extends CommonMethods implements Runnable
             else
             {
                 System.out.println(msg[1]); //File not found.
-                errorMessage = msg[1];
+                error[0] = msg[1];
+                error[1] = "1";
+                
             }
         }
 
@@ -308,7 +313,8 @@ class Server extends CommonMethods implements Runnable
         	File f = new File("./WRQ " + getFilename(packet));
             if(f.exists() && !f.isDirectory()) {
             	System.out.println(msg[6]); //File already exists.
-                errorMessage = msg[6];
+                error[0]= msg[6];
+                error[1] = "6";
             }
             else { 
             	//System.out.println("No pre-existing file with same name.");
@@ -322,7 +328,7 @@ class Server extends CommonMethods implements Runnable
 
         }
 
-        return errorMessage;
+        return error;
 
     }
     
@@ -343,7 +349,7 @@ class Server extends CommonMethods implements Runnable
         if (data[0] == 0 && data[1] == 1)       //IF PACKET IS RRQ
         {
             try {
-                if (checkError(packet) == "No Error")
+                if (checkError(packet)[0] == "No Error")
                     readRequest(port, filename);
                 else
                 {
@@ -357,7 +363,7 @@ class Server extends CommonMethods implements Runnable
         else if (data[0] == 0 && data[1] == 2)  //IF PACKET IS WRQ
         {
             try {
-                if (checkError(packet) == "No Error")
+                if (checkError(packet)[0] == "No Error")
                     writeRequest(port, filename);
                 else
                 {
@@ -379,31 +385,37 @@ class Server extends CommonMethods implements Runnable
     public void sendError(DatagramPacket packet) throws Exception
     {
         DatagramSocket writeSocket = new DatagramSocket();
-        String error = checkError(packet);
+        String errorMessage = checkError(packet)[0];
+        int errorCode = Integer.parseInt(checkError(packet)[1]);
+        byte[] temp = errorMessage.getBytes();
+        
 
-        byte[] sendData = new byte[DATA_SIZE];
-        sendData[0]=0;
-        sendData[1]=5;
-        sendData[2]=0;
-        sendData[3]=errorMap.get(error).byteValue(); //Map the error code to the corresponding number
+        byte[] sendData = new byte[4 + errorMessage.length() + 1];
+        sendData[0]=0; // error opcode byte
+        sendData[1]=5; // error opcode byte
+        sendData[2]=0; // error code byte
+        sendData[3]= (byte) errorCode;
 
         //if (error == "File not found.")
         //    sendData[3]=1;
 
-        //Error Code
-        byte[] temp = error.getBytes();
-        int j = 4; //byte placeholder for header
-
-        for (int i = 0; i < error.getBytes().length; i++) {
-            sendData[j++] = temp[i];
-        }
-
+        // Add errorMessage
+        System.arraycopy(temp, 0, sendData, 4, temp.length);
+        
         //Add 0x0
-        sendData[j++] = 0;
+        sendData[4 + errorMessage.length()] = 0;
+        
+      //  int j = 4; //byte placeholder for header
+
+       // for (int i = 0; i < temp.length; i++) {
+     //       sendData[j++] = temp[i];
+      //  }
+
+        
 
         //Resizing packet here for now
-        byte[] sendSmallData = new byte[j];
-        for (int i = 0; i < j; i++)
+        byte[] sendSmallData = new byte[sendData.length];
+        for (int i = 0; i < sendData.length; i++)
         {
             sendSmallData[i] = sendData[i];
         }
