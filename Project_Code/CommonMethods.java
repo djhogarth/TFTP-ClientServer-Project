@@ -149,8 +149,10 @@ public class CommonMethods {
 
             if (data[0] == 0 && data[1] == 5)
             {
-                String error = Server.checkError(packet)[0]; //using this for now
-                System.out.println("ERROR CODE \t= X = " + error);
+                String errorMessage = Server.checkError(packet)[0]; //using this for now
+                String errorCode = Server.checkError(packet)[1];
+                System.out.println("ERROR MESSAGE \t\t\t = " + errorMessage);
+                System.out.println("ERROR CODE \t\t\t = " + errorCode);
             }
 
 
