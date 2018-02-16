@@ -11,20 +11,7 @@ public class CommonMethods {
 
     private static String tempFilename;
 
-	public static final Map<String, Integer> errorMap;
-    static
-    {
-    	errorMap = new HashMap<String, Integer>();
-    	errorMap.put("Not defined, see error message (if any).", 0);
-    	errorMap.put("File not found.", 1);
-    	errorMap.put("Access violation.", 2);
-    	errorMap.put("Disk full or allocation exceeded.", 3);
-    	errorMap.put("Illegal TFTP operation.", 4);
-    	errorMap.put("Unknown transfer ID.", 5);
-    	errorMap.put("File already exists.", 6);
-    	errorMap.put("No such user.", 7);
-    }
-
+	
     public enum direction {
         IN, OUT;
     }
@@ -213,8 +200,10 @@ public class CommonMethods {
 
             if (data[0] == 0 && data[1] == 5)
             {
-                String error = Server.checkError(packet)[0]; //using this for now
-                System.out.println("ERROR CODE \t= X = " + error);
+                String [] errorMessage = Server.checkError(packet); //using this for now
+                
+                System.out.println("ERROR MESSAGE \t\t= " + errorMessage[0]);
+                System.out.println("ERROR CODE \t\t= " + errorMessage[1]);
             }
         }
         System.out.println("-----------------------");

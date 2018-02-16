@@ -33,6 +33,7 @@ class Server extends CommonMethods implements Runnable
     private boolean isListener = false;
     private boolean quitSignal = false;
     private boolean verboseOutput = false;
+    private static String[] error = new String[2]; // error[0] = errorMessage error[1] = errorCode
 
     private String pathname;
 
@@ -272,10 +273,8 @@ class Server extends CommonMethods implements Runnable
 
     public synchronized static String[] checkError(DatagramPacket packet)
     {
-        String errorMessage = "No Error";
-        String[] error = new String[2]; // error[0] = errorMessage error[1] = errorCode
-        error[0] = errorMessage;
-        error[1] = "0";
+    	
+               
         String[] msg = new String[8];
         msg[0] = "Not defined, see error message (if any).";
         msg[1] = "File not found.";                            // -- Iteration 2
@@ -295,13 +294,17 @@ class Server extends CommonMethods implements Runnable
             File f = new File("./" + getFilename(packet));
             if(f.exists() && !f.isDirectory()) {
                 //System.out.println("File Exists!");
+            	error[0] = "No Error";
+            	error[1] = "0";
+                
             }
             else
             {
-                System.out.println(msg[1]); //File not found.
+                
                 //errorMessage = msg[1];
                 error[0] = msg[1];
                 error[1] = "1";
+                System.out.println(error[0]); //File not found.
             }
         }
 
@@ -388,9 +391,9 @@ class Server extends CommonMethods implements Runnable
     {
         DatagramSocket writeSocket = new DatagramSocket();
         //String error = checkError(packet);
-        String errorMessage = checkError(packet)[0];
-        int errorCode = Integer.parseInt(checkError(packet)[1]);
-        byte[] temp = errorMessage.getBytes();
+        String[] errorMessage = checkError(packet);
+        int errorCode = Integer.parseInt(errorMessage[1]);
+        byte[] temp = errorMessage[0].getBytes();
 
         /*
         byte[] sendData = new byte[DATA_SIZE];
@@ -400,7 +403,7 @@ class Server extends CommonMethods implements Runnable
         sendData[3]=errorMap.get(error).byteValue(); //Map the error code to the corresponding number
         */
 
-        byte[] sendData = new byte[4 + errorMessage.length() + 1];
+        byte[] sendData = new byte[4 + errorMessage[0].length() + 1];
         sendData[0]=0; // error opcode byte
         sendData[1]=5; // error opcode byte
         sendData[2]=0; // error code byte
@@ -417,7 +420,7 @@ class Server extends CommonMethods implements Runnable
         System.arraycopy(temp, 0, sendData, 4, temp.length);
 
         //Add 0x0
-        sendData[4 + errorMessage.length()] = 0;
+        sendData[4 + errorMessage[0].length()] = 0;
 
         //int j = 4; //byte placeholder for header
 
