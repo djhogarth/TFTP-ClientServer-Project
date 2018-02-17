@@ -6,7 +6,6 @@
 */
 
 import java.net.*;
-import java.nio.charset.Charset;
 
 class ErrorSim extends CommonMethods
 {

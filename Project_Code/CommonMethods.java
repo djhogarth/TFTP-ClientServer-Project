@@ -10,8 +10,25 @@ import java.util.Map;
 public class CommonMethods {
 
     private static String tempFilename;
-
-
+    
+    
+    public static final Map<String, Integer> errorMap;
+    static
+    {
+    	errorMap = new HashMap<String, Integer>();
+    	errorMap.put("Not defined, see error message (if any).", 0);
+    	errorMap.put("File not found.", 1);
+    	errorMap.put("Access violation.", 2);
+    	errorMap.put("Disk full or allocation exceeded.", 3);
+    	errorMap.put("Illegal TFTP operation.", 4);
+    	errorMap.put("Unknown transfer ID.", 5);
+    	errorMap.put("File already exists.", 6);
+    	errorMap.put("No such user.", 7);
+    }
+    
+    public static final String[] errorMessages = new String[]{"Not defined, see error message (if any).","File not found.","Access violation.",
+    		"Disk full or allocation exceeded.","Illegal TFTP operation.","Unknown transfer ID.","File already exists.","No such user."};
+    
     public enum direction {
         IN, OUT;
     }
@@ -135,9 +152,7 @@ public class CommonMethods {
 
             if (data[0] == 0 && data[1] == 5)
             {
-                String errorMessage = Server.checkError(packet)[0]; //using this for now
-                String errorCode = Server.checkError(packet)[1];
-                System.out.println("ERROR CODE \t\t= " + errorCode + " = " + errorMessage);
+            	System.out.println("ERROR CODE \t\t= " + data[3] + " = " + errorMessages[(int)data[3]]);
             }
 
 
@@ -199,9 +214,7 @@ public class CommonMethods {
 
             if (data[0] == 0 && data[1] == 5)
             {
-                String errorMessage = Server.checkError(packet)[0]; //using this for now
-                String errorCode = Server.checkError(packet)[1];
-                System.out.println("ERROR CODE \t\t= " + errorCode + " = " + errorMessage);
+            	System.out.println("ERROR CODE \t\t= " + data[3] + " = " + errorMessages[(int)data[3]]);
             }
         }
         System.out.println("-----------------------");

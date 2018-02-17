@@ -325,7 +325,7 @@ class Client extends CommonMethods{
         msg[3] = "Disk full or allocation exceeded.";          // -- Iteration 2
         msg[4] = "Illegal TFTP operation.";
         msg[5] = "Unknown transfer ID.";
-        msg[6] = "File already exists.";                       // -- Iteration 2
+        msg[6] = "File already exists.";                       // -- Iteration 2	-Done in user input
         msg[7] = "No such user.";
 
         byte[] data = packet.getData();
@@ -333,16 +333,17 @@ class Client extends CommonMethods{
         String ascii = new String(data, Charset.forName("UTF-8"));
         ascii = ascii.substring(4, ascii.length() - 1);
 
-        //Can do error 1 (file not found)
-        //Can do error 2 (access violation)
-        if (data[0] == 0 && data[1] == 1)
-        {
-
+        //check for error 3 (Disk full or allocation exceeded.)
+    	File path = new File("./ServerFiles/WRQ");
+        long diskSpace = path.getFreeSpace();//returns free space on path in bytes
+        if(diskSpace==0 || diskSpace < 100) {//100 is placeholder for vector size()
+        	System.out.println(msg[3]);
+        	errorMessage = msg[3];
         }
+
 
         //Can do error 2 (access violation)
         //Can do error 3 (Disk full or allocation exceeded.)
-        //Can do error 6 (file already exists)
         if (data[0] == 0 && data[1] == 2)
         {
 

@@ -6,12 +6,9 @@
           - Based on the packet type, sends a response to ErrorSim
 */
 
-import javax.xml.crypto.Data;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.*;
-import java.nio.charset.Charset;
-import java.util.Arrays;
 import java.util.Vector;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -29,22 +26,12 @@ class Server extends CommonMethods implements Runnable
 
     private DatagramSocket socket;
     private DatagramPacket packet;
-    private byte[] rxData, txData;
     private boolean isListener = false;
     private boolean quitSignal = false;
     private boolean verboseOutput = false;
     private static String[] error = new String[2]; // error[0] = errorMessage error[1] = errorCode
 
     private String pathname;
-
-    //TFTP OPCODES
-    public enum OPCodes {
-        READ,   //0x01
-        WRITE,  //0x02
-        DATA,   //0x03
-        ACK,    //0x04
-        ERROR   //0x05
-    }
 
     //Used to determine if a packet is inbound or outbound when displaying its text
     //public enum direction {
@@ -77,7 +64,6 @@ class Server extends CommonMethods implements Runnable
     public Server(DatagramPacket packet, boolean v) throws Exception
     {
         this.pathname = System.getProperty("user.dir") + "/ServerFiles/";
-        this.txData = new byte[DATA_SIZE];
         this.socket = new DatagramSocket();
         this.packet = packet;
         this.verboseOutput = v;
@@ -89,7 +75,7 @@ class Server extends CommonMethods implements Runnable
     //Senders are new threads that create new sockets to transmit data back to the ErrorSimulator
     public synchronized void run()
     {
-        rxData = new byte[DATA_SIZE];
+        byte[] rxData = new byte[DATA_SIZE];
 
         //If thread is LISTENER
         while(isListener)
@@ -271,11 +257,10 @@ class Server extends CommonMethods implements Runnable
         return isValid;
     }
 
-    public synchronized static String[] checkError(DatagramPacket packet)
+    public synchronized static String checkError(DatagramPacket packet)
     {
-    	
-               
-        String[] msg = new String[8];
+    	String errorMessage = "No Error";
+    	String[] msg = new String[8];
         msg[0] = "Not defined, see error message (if any).";
         msg[1] = "File not found.";                            // -- Iteration 2
         msg[2] = "Access violation.";                          // -- Iteration 2
@@ -286,58 +271,57 @@ class Server extends CommonMethods implements Runnable
         msg[7] = "No such user.";
 
         byte[] data = packet.getData();
-
+        
+        File f;
+        
         //Can do error 1 (file not found)
         //Can do error 2 (access violation)
-        if (data[0] == 0 && data[1] == 1)
+        if (data[0] == 0 && data[1] == 1)//RRQ
         {
-            File f = new File("./" + getFilename(packet));
+            f = new File("./" + getFilename(packet));
             if(f.exists() && !f.isDirectory()) {
                 //System.out.println("File Exists!");
-            	error[0] = "No Error";
-            	error[1] = "0";
-                
             }
             else
             {
-                
-                //errorMessage = msg[1];
-                error[0] = msg[1];
-                error[1] = "1";
-                System.out.println(error[0]); //File not found.
+                System.out.println(msg[1]); //File not found.
+                errorMessage = msg[1];
             }
         }
-
+        
         //Can do error 2 (access violation)
         //Can do error 3 (Disk full or allocation exceeded.)
         //Can do error 6 (file already exists)
-        if (data[0] == 0 && data[1] == 2)
+        if (data[0] == 0 && data[1] == 2)//WRQ
         {
-        	File f = new File("./WRQ " + getFilename(packet));
+        	f = new File("./ServerFiles/WRQ/" + getFilename(packet));
             if(f.exists() && !f.isDirectory()) {
             	System.out.println(msg[6]); //File already exists.
-                //errorMessage = msg[6];
-                error[0] = msg[6];
-                error[1] = "6";
+                errorMessage = msg[6];
             }
-            else { 
-            	//System.out.println("No pre-existing file with same name.");
-            }
-
         }
 
         //Not sure what to check here
-        if (data[0] == 0 && data[1] == 3)
+        if (data[0] == 0 && data[1] == 3)//DATA
         {
 
         }
+        
+        //Error 3 Disk full or allocation exceeded
+        File path = new File("./ServerFiles/WRQ");
+        long diskSpace = path.getFreeSpace();//returns free space on Server in bytes
+        if(diskSpace==0 || diskSpace < 100) {//100 is placeholder for vector size()
+        	System.out.println(msg[3]);
+        	errorMessage = msg[3];
+        }
+        
+        //Not sure what to check here
 
-        return error;
-        //return errorMessage;
+        return errorMessage;
 
     }
     
-    //A function that sends a initiates a RRQ or WRQ based a the received packet
+    //A function that sends and initiates a RRQ or WRQ based on the received packet
     //packet = packet received from ErrorSim
     //socket = socket ErrorSim used to send the packet to Server
     public synchronized void sendReply(DatagramPacket packet, DatagramSocket socket)
@@ -349,17 +333,11 @@ class Server extends CommonMethods implements Runnable
         //Extract ErrorSim socket's port from packet
         InetSocketAddress temp_add = (InetSocketAddress)packet.getSocketAddress();
         int port = temp_add.getPort();
-        DatagramPacket txPacket = new DatagramPacket(response, response.length, packet.getAddress(), port);
 
         if (data[0] == 0 && data[1] == 1)       //IF PACKET IS RRQ
         {
             try {
-                if (checkError(packet)[0] == "No Error")
                     readRequest(port, filename);
-                else
-                {
-                    sendError(packet);
-                }
             } catch (Exception e) {
                 // TODO Auto-generated catch block
                 e.printStackTrace();
@@ -368,12 +346,7 @@ class Server extends CommonMethods implements Runnable
         else if (data[0] == 0 && data[1] == 2)  //IF PACKET IS WRQ
         {
             try {
-                if (checkError(packet)[0] == "No Error")
                     writeRequest(port, filename);
-                else
-                {
-                    sendError(packet);
-                }
             } catch (Exception e) {
                 // TODO Auto-generated catch block
                 e.printStackTrace();
@@ -390,56 +363,31 @@ class Server extends CommonMethods implements Runnable
     public void sendError(DatagramPacket packet) throws Exception
     {
         DatagramSocket writeSocket = new DatagramSocket();
-        //String error = checkError(packet);
-        String[] errorMessage = checkError(packet);
-        int errorCode = Integer.parseInt(errorMessage[1]);
-        byte[] temp = errorMessage[0].getBytes();
+        String error = checkError(packet);
 
-        /*
         byte[] sendData = new byte[DATA_SIZE];
         sendData[0]=0;
         sendData[1]=5;
         sendData[2]=0;
         sendData[3]=errorMap.get(error).byteValue(); //Map the error code to the corresponding number
-        */
-
-        byte[] sendData = new byte[4 + errorMessage[0].length() + 1];
-        sendData[0]=0; // error opcode byte
-        sendData[1]=5; // error opcode byte
-        sendData[2]=0; // error code byte
-        sendData[3]= (byte) errorCode;
 
         //if (error == "File not found.")
         //    sendData[3]=1;
 
         //Error Code
-        //byte[] temp = error.getBytes();
-        //int j = 4; //byte placeholder for header
+        byte[] temp = error.getBytes();
+        int j = 4; //byte placeholder for header
 
-        // Add errorMessage
-        System.arraycopy(temp, 0, sendData, 4, temp.length);
-
-        //Add 0x0
-        sendData[4 + errorMessage[0].length()] = 0;
-
-        //int j = 4; //byte placeholder for header
-
-        //for (int i = 0; i < error.getBytes().length; i++) {
-        //    sendData[j++] = temp[i];
-        //}
-
-        // for (int i = 0; i < temp.length; i++) {
-        //       sendData[j++] = temp[i];
-        //  }
+        for (int i = 0; i < error.getBytes().length; i++) {
+            sendData[j++] = temp[i];
+        }
 
         //Add 0x0
-        //sendData[j++] = 0;
+        sendData[j++] = 0;
 
         //Resizing packet here for now
-        //byte[] sendSmallData = new byte[j];
-        //for (int i = 0; i < j; i++)
-        byte[] sendSmallData = new byte[sendData.length];
-        for (int i = 0; i < sendData.length; i++)
+        byte[] sendSmallData = new byte[j];
+        for (int i = 0; i < j; i++)
         {
             sendSmallData[i] = sendData[i];
         }
@@ -452,7 +400,7 @@ class Server extends CommonMethods implements Runnable
 
         System.out.println("ERROR Complete: TERMINATING SOCKET");
         writeSocket.close();
-    }
+}
     
     /*
 	    WRQ FLOW
@@ -467,20 +415,29 @@ class Server extends CommonMethods implements Runnable
     public synchronized void writeRequest(int port,String filename) throws Exception {
         boolean isValidFile = true;
         Vector<byte[]> fileVector = new Vector<byte[]>();
-        DatagramSocket writeSocket = new DatagramSocket();//new socket for WRQ
+        
         byte[] sendData = new byte[]{0,4,0,0};//block 0 ACK packet
-
+        
+        if (checkError(packet) != "No Error") {//initial WRQ file error check
+        	sendError(packet);
+        	socket.close();//lazy quit for now
+        	System.exit(0);
+        }
+        
         while(true) {//Loop to send ACK and receive DATA until DATA<512 bytes
             //send ACK packet to Client
+        	
             DatagramPacket txPacket = new DatagramPacket(sendData,sendData.length,InetAddress.getLocalHost(),port);
-            writeSocket.send(txPacket);
+            socket.send(txPacket);
             outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
+            
+            
             
             if(isValidFile) {
 	            //receive DATA packet from Client
 	            byte[] receiveData = new byte[DATA_SIZE];
 	            DatagramPacket rxPacket = new DatagramPacket(receiveData, receiveData.length);
-	            writeSocket.receive(rxPacket);
+	            socket.receive(rxPacket);
 	            rxPacket = resizePacket(rxPacket);
 	            outputText(rxPacket, direction.IN, endhost.ERRORSIM, verboseOutput);
 	
@@ -497,12 +454,19 @@ class Server extends CommonMethods implements Runnable
 	            sendData = new byte[]{0,4,receiveData[2],receiveData[3]};
 	            //stop if received DATA packet is less then 512 bytes
 	            if (rxPacket.getLength()<DATA_SIZE) isValidFile = false;
+	            
+	            if (checkError(packet) != "No Error") {//check received data
+	            	sendError(packet);
+	            	socket.close();//lazy quit for now
+	            	System.exit(0);
+	            }
+	            
             }
             else break;
         }
         saveFile(fileVector,filename);
         System.out.println("WRQ Complete: TERMINATING SOCKET");
-        writeSocket.close();
+        socket.close();
     }
 
     /*
@@ -517,8 +481,13 @@ class Server extends CommonMethods implements Runnable
     public synchronized void readRequest(int port,String filename) throws Exception {
 
         int blockNum=1;
-        DatagramSocket readSocket = new DatagramSocket();//new socket for RRQ
-
+        
+        if (checkError(packet) != "No Error") {//initial RRQ file error check
+        	sendError(packet);
+        	socket.close();//lazy quit for now
+        	System.exit(0);
+        }
+        
         //Path path = Paths.get("./" + filename);
         Path path = Paths.get(pathname + filename);
         byte[] file = Files.readAllBytes(path);
@@ -528,15 +497,20 @@ class Server extends CommonMethods implements Runnable
         boolean onLastBlock = false;
 
         int j=0;
-
+        
         while(!onLastBlock) {//Loop to send DATA and receive ACK until DATA<512 bytes
+        	
+        	if (checkError(packet) != "No Error") {
+        		sendError(packet);
+        	}
+        	
             byte[] blockNumBytes= blockNumToBytes(blockNum++);
             byte[] sendData = new byte[DATA_SIZE];
             sendData[0]=0;
             sendData[1]=3;
             sendData[2]=blockNumBytes[0];
             sendData[3]=blockNumBytes[1];
-
+            
             if (totalBlocksRequired == 1 || file.length - j < 512)
                 onLastBlock = true;
 
@@ -560,17 +534,17 @@ class Server extends CommonMethods implements Runnable
             //send DATA packet to client
             DatagramPacket txPacket = new DatagramPacket(sendData,sendData.length,InetAddress.getLocalHost(),port);
             txPacket = resizePacket(txPacket);
-            readSocket.send(txPacket);
+            socket.send(txPacket);
             outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
 
             byte[] receiveData = new byte[4];
             DatagramPacket rxPacket = new DatagramPacket(receiveData, receiveData.length);
-            readSocket.receive(rxPacket);
+            socket.receive(rxPacket);
             rxPacket = resizePacket(rxPacket);
             outputText(rxPacket, direction.IN, endhost.ERRORSIM, verboseOutput);
         }
         System.out.println("RRQ Complete: TERMINATING SOCKET");
-        readSocket.close();
+        socket.close();
     }
     
     //A function that writes a file with WRQ attached to its filename, takes a byte array and a filename, 
