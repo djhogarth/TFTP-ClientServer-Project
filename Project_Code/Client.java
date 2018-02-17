@@ -30,6 +30,7 @@ class Client extends CommonMethods{
     public String pathname, filename, operation, quit;
     public Vector<byte[]> receivedFile;
     private boolean verboseOutput = false; //Quiet output when false
+    private static String[] error = new String[2];
 
     
     //Used to determine if a packet is inbound or outbound when displaying its text
@@ -270,10 +271,21 @@ class Client extends CommonMethods{
                     System.out.print("Is it a (r)ead or (w)rite?: ");
                     input = reader.nextLine();
                     c.operation = input;
-
+                    Boolean filePathValid = false;
+                    
+                    String errorMessage;
                     if ((c.operation).equals("write") || (c.operation).equals("w")) {
+                    	c.txPacket = newDatagram(c.errorSimIP, OPCodes.WRITE, c.filename);
+                    	errorMessage = checkError(c.txPacket)[0];
+                    	while(errorMessage.equals("File not found.")) {
+                    		System.out.print("File Not Found, please enter valid file name: ");
+                            input = reader.nextLine();
+                            c.filename = input; // Scans the next token of the input as an int.
+                            c.txPacket = newDatagram(c.errorSimIP, OPCodes.WRITE, c.filename);
+                    		errorMessage = checkError(c.txPacket)[0];
+                    	}
                         System.out.println("\n--Writing " + c.filename + " to Server.--\n");
-                        c.txPacket = newDatagram(c.errorSimIP, OPCodes.WRITE, c.filename);
+                        
                         try {
                             c.socket.send(c.txPacket);
                             outputText(c.txPacket, direction.OUT, endhost.ERRORSIM, c.verboseOutput);
@@ -315,9 +327,9 @@ class Client extends CommonMethods{
         }
     }
 
-    public synchronized static String checkError(DatagramPacket packet)
+    public synchronized static String[] checkError(DatagramPacket packet)
     {
-        String errorMessage = "No Error";
+        
         String[] msg = new String[8];
         msg[0] = "Not defined, see error message (if any).";
         msg[1] = "File not found.";                            // -- Iteration 2
@@ -334,16 +346,30 @@ class Client extends CommonMethods{
         ascii = ascii.substring(4, ascii.length() - 1);
 
         //check for error 3 (Disk full or allocation exceeded.)
-    	File path = new File("./ServerFiles/WRQ");
-        long diskSpace = path.getFreeSpace();//returns free space on path in bytes
-        if(diskSpace==0 || diskSpace < 100) {//100 is placeholder for vector size()
-        	System.out.println(msg[3]);
-        	errorMessage = msg[3];
-        }
-
+    	
 
         //Can do error 2 (access violation)
         //Can do error 3 (Disk full or allocation exceeded.)
+       File f;
+        
+        	f = new File("./" + getFilename(packet));
+               if(f.exists() && !f.isDirectory()) {
+                    //System.out.println("File Exists!");
+            	   error[0]= "No Error";
+            	   error[1] = "0";
+                }
+                
+               
+                else
+                {
+                   
+                    error[0] = msg[1];
+                    error[1] = "1";
+                }
+            
+        
+
+        
         if (data[0] == 0 && data[1] == 2)
         {
 
@@ -352,7 +378,12 @@ class Client extends CommonMethods{
         //Not sure what to check here
         if (data[0] == 0 && data[1] == 3)
         {
-
+        	File path = new File("./ServerFiles/WRQ");
+            long diskSpace = path.getFreeSpace();//returns free space on path in bytes
+            if(diskSpace==0 || diskSpace < 100) {//100 is placeholder for vector size()
+            	System.out.println(msg[3]);
+            	error[0] = msg[3];
+            }
         }
 
         //If we receive an Error Packet
@@ -361,11 +392,11 @@ class Client extends CommonMethods{
             for (int i = 0; i < msg.length; i++)
             {
                 if (ascii.equals(msg[i]))
-                    errorMessage = ascii;
+                    error[0] = ascii;
             }
         }
 
-        return errorMessage;
+        return error;
 
     }
 
@@ -437,7 +468,7 @@ class Client extends CommonMethods{
             byte[] buffer = new byte[rxPacket.getLength() - 4];
 
             //CHECK FOR ERRORS HERE
-            String error = checkError(rxPacket);
+            String error = checkError(rxPacket)[0];
             if (error == "No Error") {
 
                 for (int i = 4; i < rxPacket.getLength(); i++) {
