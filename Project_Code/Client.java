@@ -32,8 +32,8 @@ class Client extends CommonMethods {
 	public InetAddress clientIP, errorSimIP, serverIP;
 	public String pathname, filename, operation, quit;
 	public Vector<byte[]> receivedFile;
+	public int fileSize;//size of received file vector or temp vector
 	private boolean verboseOutput = false; // Quiet output when false
-	private static String[] error = new String[2];
 
 	// Used to determine if a packet is inbound or outbound when displaying its text
 	// public enum direction {
@@ -121,6 +121,7 @@ class Client extends CommonMethods {
 		boolean firstTime = true;
 		Scanner reader = new Scanner(System.in); // Reading from System.in
 		String input = "";
+		String errorMessage;
 
 		String mainMenu = "Commands:\n(s)tart   - Start a file transfer"
 				+ "\n(o)ptions - Change parameters for this application"
@@ -269,16 +270,15 @@ class Client extends CommonMethods {
 					c.operation = input;
 					Boolean filePathValid = false;
 
-					String errorMessage;
 					if ((c.operation).equals("write") || (c.operation).equals("w")) {
 						c.txPacket = newDatagram(c.errorSimIP, OPCodes.WRITE, c.filename);
-						errorMessage = checkError(c.txPacket);
+						errorMessage = c.checkError(c.txPacket);
 						while (errorMessage.equals("File not found.")) {
 							System.out.print("File Not Found, please enter valid file name: ");
 							input = reader.nextLine();
 							c.filename = input; // Scans the next token of the input as an int.
 							c.txPacket = newDatagram(c.errorSimIP, OPCodes.WRITE, c.filename);
-							errorMessage = checkError(c.txPacket);
+							errorMessage = c.checkError(c.txPacket);
 						}
 						System.out.println("\n--Writing " + c.filename + " to Server.--\n");
 
@@ -292,35 +292,25 @@ class Client extends CommonMethods {
 					}
 
 					if ((c.operation).equals("read") || c.operation.equals("r")) {
-						File f = new File(c.pathname + c.filename);
-
-						if (f.exists() && !f.isDirectory()) {
-
-							if (f.canRead() == false) {
-								// System.out.println("ERROR 02:Can't read file.");
-
-							}
-
-							// System.out.println("ERROR 06: The desired file already exists in this
-							// directory.");
-							// System.out.println("Closing client thread.");
-							// break;
-						}
-
-						System.out.println("\n--Reading " + c.filename + " from Server.--\n");
 						c.txPacket = newDatagram(c.errorSimIP, OPCodes.READ, c.filename);
-						try {
-							c.socket.send(c.txPacket);
-							outputText(c.txPacket, direction.OUT, endhost.ERRORSIM, c.verboseOutput);
-							c.receivedFile = c.readRequest(getPort(c.txPacket));
-
-							// CHECK ERRORS HERE
-							if (c.receivedFile.size() != 0) {
-								saveFile(c.receivedFile, c.filename, c);
+						errorMessage = c.checkError(c.txPacket);
+						if(errorMessage =="No Error") {
+							System.out.println("\n--Reading " + c.filename + " from Server.--\n");
+							try {
+								c.socket.send(c.txPacket);
+								outputText(c.txPacket, direction.OUT, endhost.ERRORSIM, c.verboseOutput);
+								c.receivedFile = c.readRequest(getPort(c.txPacket));
+	
+								// CHECK ERRORS HERE
+								if (c.receivedFile.size() != 0) {
+									saveFile(c.receivedFile, c.filename, c);
+								}
+	
+							} catch (Exception e) {
+								e.printStackTrace();
 							}
-
-						} catch (Exception e) {
-							e.printStackTrace();
+						}else {
+							System.out.println(errorMessage);
 						}
 					}
 
@@ -331,11 +321,11 @@ class Client extends CommonMethods {
 		}
 	}
 
-	public synchronized static String checkError(DatagramPacket packet) {
+	public synchronized String checkError(DatagramPacket packet) {
 		String errorMessage = "No Error";
 		String[] msg = new String[8];
 		msg[0] = "Not defined, see error message (if any).";
-		msg[1] = "File not found."; // -- Iteration 2
+		msg[1] = "File not found."; // -- Iteration 2	   -Done in user input WRQ
 		msg[2] = "Access violation."; // -- Iteration 2
 		msg[3] = "Disk full or allocation exceeded."; // -- Iteration 2
 		msg[4] = "Illegal TFTP operation.";
@@ -344,26 +334,32 @@ class Client extends CommonMethods {
 		msg[7] = "No such user.";
 
 		byte[] data = packet.getData();
-		String ascii = new String(data, Charset.forName("UTF-8"));
-		ascii = ascii.substring(4, ascii.length() - 1);
 
-		// check for error 3 (Disk full or allocation exceeded.)
 		File path = new File("./ClientFiles/");
-		long diskSpace = path.getFreeSpace();// returns free space on path in bytes
-		if (diskSpace == 0 || diskSpace < 100) {// 100 is placeholder for vector size()
-			System.out.println(msg[3]);
-			errorMessage = msg[3];
-		}
-
+		//path = new File("e:/");//used for testing error 3 - path of full drive
+		long diskSpace = path.getUsableSpace();// returns free space on path in bytes
+		File f;
+		f = new File("./ClientFiles/" + getFilename(packet));
+		
 		// Can do error 2 (access violation)
 		// Can do error 3 (Disk full or allocation exceeded.)
-		File f;
-		if (data[0] == 0 && data[1] == 1) {
-
+		// Can do error 6 (file already exists)
+		if (data[0] == 0 && data[1] == 1) {//RRQ
+			if (diskSpace == 0) {
+				System.out.println(msg[3]);
+				errorMessage = msg[3];
+			}
+			if (f.exists() && !f.isDirectory()) {
+				errorMessage = msg[6];
+			}			
+			if (path.canRead() == false) {
+				errorMessage = msg[2];
+			}
 		}
-
+		
+		// Can do error 1 (file not found)
+		// Can do error 2 (access violation)
 		if (data[0] == 0 && data[1] == 2) {//WRQ
-			f = new File("./ClientFiles/" + getFilename(packet));
 			if (f.exists() && !f.isDirectory()) {
 				// System.out.println("File Exists!");
 			} else {
@@ -372,13 +368,20 @@ class Client extends CommonMethods {
 			}
 		}
 
-		// Not sure what to check here
-		if (data[0] == 0 && data[1] == 3) {
-			
+		// Can do error 2 (access violation)
+		// Can do error 3 (Disk full or allocation exceeded.)
+		if (data[0] == 0 && data[1] == 3) {//DATA
+			if (diskSpace == 0 || diskSpace < fileSize) {// 100 is placeholder for vector size()
+				System.out.println(msg[3]);
+				errorMessage = msg[3];
+			}
 		}
 
 		// If we receive an Error Packet
 		if (data[0] == 0 && data[1] == 5) {
+			String ascii = new String(data, Charset.forName("UTF-8"));
+			ascii = ascii.substring(4, ascii.length() - 1);
+			
 			for (int i = 0; i < msg.length; i++) {
 				if (ascii.equals(msg[i]))
 					errorMessage = ascii;
@@ -389,7 +392,7 @@ class Client extends CommonMethods {
 
 	}
 
-	public void sendError(DatagramPacket packet) throws Exception {
+	public void sendError(DatagramPacket packet) {
 		String error = checkError(packet);
 
 		byte[] sendData = new byte[DATA_SIZE];
@@ -418,7 +421,14 @@ class Client extends CommonMethods {
 		// send DATA packet to client
 		txPacket = new DatagramPacket(sendSmallData, sendSmallData.length, packet.getAddress(), getPort(packet));
 		txPacket = resizePacket(txPacket);
-		socket.send(txPacket);
+		
+		try {
+			socket.send(txPacket);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
 		outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
 
 		System.out.println("ERROR Complete: TERMINATING SOCKET");
@@ -494,6 +504,7 @@ class Client extends CommonMethods {
 
 			// CHECK FOR ERRORS HERE
 			String error = checkError(rxPacket);
+			fileSize=tempVector.size();
 			if (error == "No Error") {
 
 				for (int i = 4; i < rxPacket.getLength(); i++) {
@@ -517,7 +528,6 @@ class Client extends CommonMethods {
 						isValidPkt = false;
 				}
 			} else {
-				sendError(rxPacket);
 				isValidPkt = false;
 			}
 		}
@@ -545,12 +555,18 @@ class Client extends CommonMethods {
 
 		while (true) {// Loop to receive ACK and send DATA until sent DATA<512 bytes
 			// create and receive ACK
-			byte[] receiveData = new byte[4];
+			byte[] receiveData = new byte[DATA_SIZE];
 			rxPacket = new DatagramPacket(receiveData, receiveData.length);
-			this.socket.receive(rxPacket);
+			socket.receive(rxPacket);
 			rxPacket = resizePacket(rxPacket);
 			outputText(rxPacket, direction.IN, endhost.ERRORSIM, verboseOutput);
-
+			
+			
+			if (receiveData[1]==5) return; //Stop Client if it receives an error
+			if (checkError(rxPacket) != "No Error") {//check for error from server
+	        	sendError(rxPacket);
+	        }
+			
 			// create send DATA
 			byte[] blockNumBytes = blockNumToBytes(blockNum++);
 			byte[] sendData = new byte[DATA_SIZE];
@@ -583,7 +599,7 @@ class Client extends CommonMethods {
 			}
 
 			txPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getLocalHost(), port);
-			this.socket.send(this.txPacket);
+			socket.send(txPacket);
 			txPacket = resizePacket(txPacket);
 			outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
 		}

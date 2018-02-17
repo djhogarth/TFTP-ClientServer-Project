@@ -31,7 +31,8 @@ class Server extends CommonMethods implements Runnable
     private boolean verboseOutput = false;
 
     private String pathname;
-
+    private int fileSize;//file size of written file 
+    
     //Used to determine if a packet is inbound or outbound when displaying its text
     //public enum direction {
     //    IN, OUT;
@@ -256,7 +257,7 @@ class Server extends CommonMethods implements Runnable
         return isValid;
     }
 
-    public synchronized static String checkError(DatagramPacket packet)
+    public synchronized String checkError(DatagramPacket packet)
     {
     	String errorMessage = "No Error";
     	String[] msg = new String[8];
@@ -273,6 +274,8 @@ class Server extends CommonMethods implements Runnable
         
         File f;
         File path = new File("./ServerFiles/WRQ/");
+        //path = new File("e:/");//used for testing error 3 - path of full drive
+        long diskSpace = path.getUsableSpace();//returns free space on Server in bytes
         
         //Can do error 1 (file not found)
         //Can do error 2 (access violation)
@@ -281,16 +284,17 @@ class Server extends CommonMethods implements Runnable
             f = new File("./ServerFiles/" + getFilename(packet));
             if(f.exists() && !f.isDirectory()) {
                 //System.out.println("File Exists!");
-            }
-            else if (f.canRead()==false) {
-            	errorMessage = msg[2];
-            	System.out.println(msg[2]);   //access violation.
-            }            
+            }         
             else
             {
                 System.out.println(msg[1]); //File not found.
                 errorMessage = msg[1];
             }
+            f = new File("./ServerFiles/");
+            if (f.canRead()==false) {
+            	errorMessage = msg[2];
+            	System.out.println(msg[2]);   //access violation.
+            }  
         }
         
         //Can do error 2 (access violation)
@@ -299,32 +303,33 @@ class Server extends CommonMethods implements Runnable
         if (data[0] == 0 && data[1] == 2)//WRQ
         {
         	f = new File("./ServerFiles/WRQ/" + getFilename(packet));
-        	
             if(f.exists() && !f.isDirectory()) {
             	System.out.println(msg[6]); //File already exists.
                 errorMessage = msg[6];              
-            }            
-            //Doesn't work properly fix this
-            //if (f.canWrite()==false) {
-            //	errorMessage = msg[2];  
-            //	System.out.println(msg[2]);   //access violation.
-            //}
+            }        	    
             
+            f = new File("./ServerFiles/" + getFilename(packet));
+            if (f.canWrite()==false) {
+            	errorMessage = msg[2];  
+            	System.out.println(msg[2]);   //access violation.
+            }
+            
+		    if(diskSpace==0) {
+		    	System.out.println(msg[3]); //Disk full or allocation exceeded
+		    	errorMessage = msg[3];
+		    }
         }
 
         //Not sure what to check here
         if (data[0] == 0 && data[1] == 3)//DATA
         {
-
+        	
+		    if(diskSpace==0 || diskSpace < fileSize) {//size of file being written
+		    	System.out.println(msg[3]); //Disk full or allocation exceeded
+		    	errorMessage = msg[3];
+		    }
         }
         
-        //Error 3 Disk full or allocation exceeded
-        long diskSpace = path.getFreeSpace();//returns free space on Server in bytes
-        if(diskSpace==0 || diskSpace < 100) {//100 is placeholder for vector size()
-        	System.out.println(msg[3]);
-        	errorMessage = msg[3];
-        }
-
         return errorMessage;
 
     }
@@ -363,7 +368,7 @@ class Server extends CommonMethods implements Runnable
 
     public void sendError(DatagramPacket packet) throws Exception
     {
-        DatagramSocket writeSocket = new DatagramSocket();
+        socket = new DatagramSocket();
         String error = checkError(packet);
 
         byte[] sendData = new byte[DATA_SIZE];
@@ -393,11 +398,11 @@ class Server extends CommonMethods implements Runnable
         //send DATA packet to client
         DatagramPacket txPacket = new DatagramPacket(sendSmallData,sendSmallData.length,packet.getAddress(), getPort(packet));
         txPacket = resizePacket(txPacket);
-        writeSocket.send(txPacket);
+        socket.send(txPacket);
         outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
 
         System.out.println("ERROR Complete: TERMINATING SOCKET");
-        writeSocket.close();
+        socket.close();
         System.exit(0);//shutdown after error
     }
     
@@ -415,12 +420,12 @@ class Server extends CommonMethods implements Runnable
         boolean isValidFile = true;
         Vector<byte[]> fileVector = new Vector<byte[]>();
         
+        
         byte[] sendData = new byte[]{0,4,0,0};//block 0 ACK packet
         
+        fileSize=fileVector.size();
         if (checkError(packet) != "No Error") {//initial WRQ file error check
         	sendError(packet);
-        	socket.close();//lazy quit for now
-        	return;
         }
         
         while(true) {//Loop to send ACK and receive DATA until DATA<512 bytes
@@ -452,12 +457,10 @@ class Server extends CommonMethods implements Runnable
 	            //stop if received DATA packet is less then 512 bytes
 	            if (rxPacket.getLength()<DATA_SIZE) isValidFile = false;
 	            
-	            if (checkError(packet) != "No Error") {//check received data
-	            	sendError(packet);
-	            	socket.close();//lazy quit for now
-	            	return;
+	            fileSize=fileVector.size();
+	            if (checkError(rxPacket) != "No Error") {//check received data
+	            	sendError(rxPacket);
 	            }
-	            
             }
             else break;
         }
