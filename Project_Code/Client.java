@@ -372,23 +372,16 @@ class Client extends CommonMethods{
         //Can do error 3 (Disk full or allocation exceeded.)
        File f;
         
-        	f = new File("./" + getFilename(packet));
-               if(f.exists() && !f.isDirectory()) {
-                    //System.out.println("File Exists!");
-            	   error[0]= "No Error";
-            	   error[1] = "0";
-                }
-                
-               
-                else
-                {
-                   
-                    error[0] = msg[1];
-                    error[1] = "1";
-                }
-            
-        
+		f = new File("./ClientFiles/" + getFilename(packet));
+		if (f.exists() && !f.isDirectory()) {
+			// System.out.println("File Exists!");
+		}
 
+		else {
+			errorMessage = msg[1];
+			System.out.println(msg[1]);
+		}
+            
         
         if (data[0] == 0 && data[1] == 2)
         {

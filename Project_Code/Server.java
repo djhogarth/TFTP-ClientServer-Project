@@ -304,10 +304,11 @@ class Server extends CommonMethods implements Runnable
             	System.out.println(msg[6]); //File already exists.
                 errorMessage = msg[6];              
             }            
-            if (f.canWrite()==false) {
-            	errorMessage = msg[2];  
-            	System.out.println(msg[2]);   //access violation.
-            }
+            //Doesn't work properly fix this
+            //if (f.canWrite()==false) {
+            //	errorMessage = msg[2];  
+            //	System.out.println(msg[2]);   //access violation.
+            //}
             
         }
 
