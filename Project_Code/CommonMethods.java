@@ -202,7 +202,8 @@ public class CommonMethods {
 
                 String errorMessage = Server.checkError(packet)[0]; //using this for now
                 String errorCode = Server.checkError(packet)[1];
-                System.out.println("ERROR CODE \t\t= " + errorCode + " = " + errorMessage);
+                System.out.println("ERROR CODE \t\t= " + errorCode );
+                System.out.println("ERROR MESSAGE \t\t= " + errorMessage);
 
             }
         }
