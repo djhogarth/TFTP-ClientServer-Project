@@ -271,7 +271,14 @@ class Client extends CommonMethods {
 					Boolean filePathValid = false;
 
 					if ((c.operation).equals("write") || (c.operation).equals("w")) {
-						c.txPacket = newDatagram(c.errorSimIP, OPCodes.WRITE, c.filename);
+						
+						try {	c.txPacket = newDatagram(c.errorSimIP, OPCodes.WRITE, c.filename);}
+						catch (Exception e) {
+							System.out.println("ACCESS VIOLATION");
+						}
+						
+						
+						
 						errorMessage = c.checkError(c.txPacket);
 						while (errorMessage.equals("File not found.")) {
 							System.out.print("File Not Found, please enter valid file name: ");
@@ -289,10 +296,15 @@ class Client extends CommonMethods {
 						} catch (Exception e) {
 							e.printStackTrace();
 						}
+					
 					}
-
 					if ((c.operation).equals("read") || c.operation.equals("r")) {
-						c.txPacket = newDatagram(c.errorSimIP, OPCodes.READ, c.filename);
+				
+						try {	c.txPacket = newDatagram(c.errorSimIP, OPCodes.READ, c.filename); }
+						catch (Exception e) {
+							System.out.println("ACCESS VIOLATION");
+						}
+					
 						errorMessage = c.checkError(c.txPacket);
 						if(errorMessage =="No Error") {
 							System.out.println("\n--Reading " + c.filename + " from Server.--\n");
@@ -300,6 +312,7 @@ class Client extends CommonMethods {
 								c.socket.send(c.txPacket);
 								outputText(c.txPacket, direction.OUT, endhost.ERRORSIM, c.verboseOutput);
 								c.receivedFile = c.readRequest(getPort(c.txPacket));
+								
 	
 								// CHECK ERRORS HERE
 								if (c.receivedFile.size() != 0) {
@@ -308,6 +321,7 @@ class Client extends CommonMethods {
 	
 							} catch (Exception e) {
 								e.printStackTrace();
+						
 							}
 						}else {
 							System.out.println(errorMessage);
@@ -351,6 +365,7 @@ class Client extends CommonMethods {
 			}
 			if (f.exists() && !f.isDirectory()) {
 				errorMessage = msg[6];
+				
 			}			
 			if (path.canRead() == false) {
 				errorMessage = msg[2];
@@ -361,6 +376,10 @@ class Client extends CommonMethods {
 		// Can do error 2 (access violation)
 		if (data[0] == 0 && data[1] == 2) {//WRQ
 			if (f.exists() && !f.isDirectory()) {
+				if (f.canRead()==false) {
+	            	errorMessage = msg[2];
+	            	System.out.println(msg[2]);   //access violation.
+	            }  
 				// System.out.println("File Exists!");
 			} else {
 				errorMessage = msg[1];

@@ -309,7 +309,7 @@ class Server extends CommonMethods implements Runnable
             }        	    
             
             f = new File("./ServerFiles/" + getFilename(packet));
-            if (f.canWrite()==false) {
+            if (!f.canWrite()) {
             	errorMessage = msg[2];  
             	System.out.println(msg[2]);   //access violation.
             }
@@ -351,8 +351,7 @@ class Server extends CommonMethods implements Runnable
             try {
                     readRequest(port, filename);
             } catch (Exception e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
+            	System.out.println("ACCESS VIOLATION");
             }
         }
         else if (data[0] == 0 && data[1] == 2)  //IF PACKET IS WRQ
@@ -360,8 +359,7 @@ class Server extends CommonMethods implements Runnable
             try {
                     writeRequest(port, filename);
             } catch (Exception e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
+            	System.out.println("ACCESS VIOLATION");
             }
         }
     }

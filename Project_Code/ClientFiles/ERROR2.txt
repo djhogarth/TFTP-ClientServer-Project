@@ -34,12 +34,5 @@
   Is it a (r)ead or (w)rite?: w
   If this is the last file, enter 'q'. <ENTER>    <--Enter q here to shutdown client
 
-ACCESS VIOLATION TEST CASE:
-In order to test this case I have created an error2 text file located in 
-the clientFiles/ServerFiles, left click them and select properties, go
-to the security tab and then to advanced, from there you should be able
-to disable inheritance, apply and then try to read error2, and we will
-be prompted by the error.
-
   7)Enter q in Server Console when instructed to shutdown Server
 */
