@@ -11,7 +11,7 @@ public class CommonMethods {
 
     private static String tempFilename;
 
-	
+
     public enum direction {
         IN, OUT;
     }
@@ -199,12 +199,9 @@ public class CommonMethods {
 
             if (data[0] == 0 && data[1] == 5)
             {
-
                 String errorMessage = Server.checkError(packet)[0]; //using this for now
                 String errorCode = Server.checkError(packet)[1];
-                System.out.println("ERROR CODE \t\t= " + errorCode );
-                System.out.println("ERROR MESSAGE \t\t= " + errorMessage);
-
+                System.out.println("ERROR CODE \t\t= " + errorCode + " = " + errorMessage);
             }
         }
         System.out.println("-----------------------");
