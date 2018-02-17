@@ -285,11 +285,21 @@ class Client extends CommonMethods{
 
                     if ((c.operation).equals("read") || c.operation.equals("r")) {
                         File f = new File(c.pathname + c.filename);
+                        
                         if (f.exists() && !f.isDirectory()) {
+                        	
+                        	 if (f.canRead()==false) {
+                             //System.out.println("ERROR 02:Can't read file.");	
+                             	
+                             }
+                        	
                             //System.out.println("ERROR 06: The desired file already exists in this directory.");
                             //System.out.println("Closing client thread.");
                             //break;
                         }
+                        
+                     
+                        
                         System.out.println("\n--Reading " + c.filename + " from Server.--\n");
                         c.txPacket = newDatagram(c.errorSimIP, OPCodes.READ, c.filename);
                         try {
