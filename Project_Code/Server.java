@@ -282,6 +282,13 @@ class Server extends CommonMethods implements Runnable
             if(f.exists() && !f.isDirectory()) {
                 //System.out.println("File Exists!");
             }
+            
+            else if (f.canRead()==false) {
+            	error[0] = msg[2];
+            	error[1] = "2";   
+            	System.out.println(msg[2]);   //access violation.
+            }
+
             else
             {
                 System.out.println(msg[1]); //File not found.
@@ -289,6 +296,11 @@ class Server extends CommonMethods implements Runnable
             }
         }
         
+<<<<<<< HEAD
+=======
+       
+
+>>>>>>> 4c2537641e0ea3d788ade88bc93ed1376f3829ec
         //Can do error 2 (access violation)
         //Can do error 3 (Disk full or allocation exceeded.)
         //Can do error 6 (file already exists)
