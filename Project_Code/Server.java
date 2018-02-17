@@ -296,11 +296,6 @@ class Server extends CommonMethods implements Runnable
             }
         }
         
-<<<<<<< HEAD
-=======
-       
-
->>>>>>> 4c2537641e0ea3d788ade88bc93ed1376f3829ec
         //Can do error 2 (access violation)
         //Can do error 3 (Disk full or allocation exceeded.)
         //Can do error 6 (file already exists)
