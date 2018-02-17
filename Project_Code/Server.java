@@ -298,6 +298,13 @@ class Server extends CommonMethods implements Runnable
             	error[1] = "0";
                 
             }
+            
+            else if (f.canRead()==false) {
+            	error[0] = msg[2];
+            	error[1] = "2";   
+            	System.out.println(msg[2]);   //access violation.
+            }
+            
             else
             {
                 
@@ -307,6 +314,8 @@ class Server extends CommonMethods implements Runnable
                 System.out.println(error[0]); //File not found.
             }
         }
+        
+       
 
         //Can do error 2 (access violation)
         //Can do error 3 (Disk full or allocation exceeded.)
