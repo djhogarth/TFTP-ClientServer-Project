@@ -368,7 +368,7 @@ class Client extends CommonMethods {
 				// System.out.println("File Exists!");
 			} else {
 				errorMessage = msg[1];
-				System.out.println(msg[1]);
+				
 			}
 		}
 
