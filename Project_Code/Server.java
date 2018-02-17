@@ -282,12 +282,10 @@ class Server extends CommonMethods implements Runnable
             if(f.exists() && !f.isDirectory()) {
                 //System.out.println("File Exists!");
             }
-            
             else if (f.canRead()==false) {
             	errorMessage = msg[2];
             	System.out.println(msg[2]);   //access violation.
-            }
-
+            }            
             else
             {
                 System.out.println(msg[1]); //File not found.
@@ -301,10 +299,16 @@ class Server extends CommonMethods implements Runnable
         if (data[0] == 0 && data[1] == 2)//WRQ
         {
         	f = new File("./ServerFiles/WRQ/" + getFilename(packet));
+        	
             if(f.exists() && !f.isDirectory()) {
             	System.out.println(msg[6]); //File already exists.
-                errorMessage = msg[6];
+                errorMessage = msg[6];              
+            }            
+            if (f.canWrite()==false) {
+            	errorMessage = msg[2];  
+            	System.out.println(msg[2]);   //access violation.
             }
+            
         }
 
         //Not sure what to check here
@@ -314,7 +318,6 @@ class Server extends CommonMethods implements Runnable
         }
         
         //Error 3 Disk full or allocation exceeded
-        
         long diskSpace = path.getFreeSpace();//returns free space on Server in bytes
         if(diskSpace==0 || diskSpace < 100) {//100 is placeholder for vector size()
         	System.out.println(msg[3]);

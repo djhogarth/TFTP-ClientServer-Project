@@ -36,6 +36,7 @@ class Client extends CommonMethods{
     public String pathname, filename, operation, quit;
     public Vector<byte[]> receivedFile;
     private boolean verboseOutput = false; //Quiet output when false
+    private static String[] error = new String[2];
 
     
     //Used to determine if a packet is inbound or outbound when displaying its text
@@ -276,10 +277,21 @@ class Client extends CommonMethods{
                     System.out.print("Is it a (r)ead or (w)rite?: ");
                     input = reader.nextLine();
                     c.operation = input;
-
+                    Boolean filePathValid = false;
+                    
+                    String errorMessage;
                     if ((c.operation).equals("write") || (c.operation).equals("w")) {
+                    	c.txPacket = newDatagram(c.errorSimIP, OPCodes.WRITE, c.filename);
+                    	errorMessage = checkError(c.txPacket);
+                    	while(errorMessage.equals("File not found.")) {
+                    		System.out.print("File Not Found, please enter valid file name: ");
+                            input = reader.nextLine();
+                            c.filename = input; // Scans the next token of the input as an int.
+                            c.txPacket = newDatagram(c.errorSimIP, OPCodes.WRITE, c.filename);
+                    		errorMessage = checkError(c.txPacket);
+                    	}
                         System.out.println("\n--Writing " + c.filename + " to Server.--\n");
-                        c.txPacket = newDatagram(c.errorSimIP, OPCodes.WRITE, c.filename);
+                        
                         try {
                             c.socket.send(c.txPacket);
                             outputText(c.txPacket, direction.OUT, endhost.ERRORSIM, c.verboseOutput);
@@ -291,11 +303,21 @@ class Client extends CommonMethods{
 
                     if ((c.operation).equals("read") || c.operation.equals("r")) {
                         File f = new File(c.pathname + c.filename);
+                        
                         if (f.exists() && !f.isDirectory()) {
+                        	
+                        	 if (f.canRead()==false) {
+                             //System.out.println("ERROR 02:Can't read file.");	
+                             	
+                             }
+                        	
                             //System.out.println("ERROR 06: The desired file already exists in this directory.");
                             //System.out.println("Closing client thread.");
                             //break;
                         }
+                        
+                     
+                        
                         System.out.println("\n--Reading " + c.filename + " from Server.--\n");
                         c.txPacket = newDatagram(c.errorSimIP, OPCodes.READ, c.filename);
                         try {
@@ -321,9 +343,9 @@ class Client extends CommonMethods{
         }
     }
 
-    public synchronized String checkError(DatagramPacket packet)
+    public synchronized static String checkError(DatagramPacket packet)
     {
-        String errorMessage = "No Error";
+    	String errorMessage = "No Error";
         String[] msg = new String[8];
         msg[0] = "Not defined, see error message (if any).";
         msg[1] = "File not found.";                            // -- Iteration 2	
@@ -339,7 +361,7 @@ class Client extends CommonMethods{
         ascii = ascii.substring(4, ascii.length() - 1);
 
         //check for error 3 (Disk full or allocation exceeded.)
-    	File path = new File(pathname);
+    	File path = new File("./ClientFiles/");
         long diskSpace = path.getFreeSpace();//returns free space on path in bytes
         if(diskSpace==0 || diskSpace < 100) {//100 is placeholder for vector size()
         	System.out.println(msg[3]);
@@ -348,6 +370,26 @@ class Client extends CommonMethods{
 
         //Can do error 2 (access violation)
         //Can do error 3 (Disk full or allocation exceeded.)
+       File f;
+        
+        	f = new File("./" + getFilename(packet));
+               if(f.exists() && !f.isDirectory()) {
+                    //System.out.println("File Exists!");
+            	   error[0]= "No Error";
+            	   error[1] = "0";
+                }
+                
+               
+                else
+                {
+                   
+                    error[0] = msg[1];
+                    error[1] = "1";
+                }
+            
+        
+
+        
         if (data[0] == 0 && data[1] == 2)
         {
 
