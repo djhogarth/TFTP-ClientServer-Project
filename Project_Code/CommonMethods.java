@@ -1,5 +1,4 @@
 import java.net.DatagramPacket;
-import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.charset.Charset;
@@ -25,9 +24,6 @@ public class CommonMethods {
     	errorMap.put("File already exists.", 6);
     	errorMap.put("No such user.", 7);
     }
-    
-    public static final String[] errorMessages = new String[]{"Not defined, see error message (if any).","File not found.","Access violation.",
-    		"Disk full or allocation exceeded.","Illegal TFTP operation.","Unknown transfer ID.","File already exists.","No such user."};
     
     public enum direction {
         IN, OUT;
@@ -151,8 +147,10 @@ public class CommonMethods {
             }
 
             if (data[0] == 0 && data[1] == 5)
-            {
-            	System.out.println("ERROR CODE \t\t= " + data[3] + " = " + errorMessages[(int)data[3]]);
+            {	
+            	String errorMessage = new String(data, Charset.forName("UTF-8"));
+                errorMessage = errorMessage.substring(4, errorMessage.length());
+            	System.out.println("ERROR CODE \t\t= " + data[3] + " = " + errorMessage);
             }
 
 
@@ -214,7 +212,9 @@ public class CommonMethods {
 
             if (data[0] == 0 && data[1] == 5)
             {
-            	System.out.println("ERROR CODE \t\t= " + data[3] + " = " + errorMessages[(int)data[3]]);
+            	String errorMessage = new String(data, Charset.forName("UTF-8"));
+                errorMessage = errorMessage.substring(4, errorMessage.length());
+            	System.out.println("ERROR CODE \t\t= " + data[3] + " = " + errorMessage);
             }
         }
         System.out.println("-----------------------");

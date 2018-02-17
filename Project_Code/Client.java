@@ -7,8 +7,14 @@
 
 
 
-import java.io.*;
-import java.net.*;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.SocketException;
+import java.net.UnknownHostException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -315,32 +321,30 @@ class Client extends CommonMethods{
         }
     }
 
-    public synchronized static String checkError(DatagramPacket packet)
+    public synchronized String checkError(DatagramPacket packet)
     {
         String errorMessage = "No Error";
         String[] msg = new String[8];
         msg[0] = "Not defined, see error message (if any).";
-        msg[1] = "File not found.";                            // -- Iteration 2
-        msg[2] = "Access violation.";                          // -- Iteration 2
-        msg[3] = "Disk full or allocation exceeded.";          // -- Iteration 2
+        msg[1] = "File not found.";                            // -- Iteration 2	
+        msg[2] = "Access violation.";                          // -- Iteration 2	
+        msg[3] = "Disk full or allocation exceeded.";          // -- Iteration 2	
         msg[4] = "Illegal TFTP operation.";
         msg[5] = "Unknown transfer ID.";
-        msg[6] = "File already exists.";                       // -- Iteration 2	-Done in user input
+        msg[6] = "File already exists.";                       // -- Iteration 2	-Done in user input RRQ
         msg[7] = "No such user.";
 
         byte[] data = packet.getData();
-        boolean validError = false;
         String ascii = new String(data, Charset.forName("UTF-8"));
         ascii = ascii.substring(4, ascii.length() - 1);
 
         //check for error 3 (Disk full or allocation exceeded.)
-    	File path = new File("./ServerFiles/WRQ");
+    	File path = new File(pathname);
         long diskSpace = path.getFreeSpace();//returns free space on path in bytes
         if(diskSpace==0 || diskSpace < 100) {//100 is placeholder for vector size()
         	System.out.println(msg[3]);
         	errorMessage = msg[3];
         }
-
 
         //Can do error 2 (access violation)
         //Can do error 3 (Disk full or allocation exceeded.)
@@ -368,7 +372,46 @@ class Client extends CommonMethods{
         return errorMessage;
 
     }
+    
+    public void sendError(DatagramPacket packet) throws Exception
+    {
+        String error = checkError(packet);
 
+        byte[] sendData = new byte[DATA_SIZE];
+        sendData[0]=0;
+        sendData[1]=5;
+        sendData[2]=0;
+        sendData[3]=errorMap.get(error).byteValue(); //Map the error code to the corresponding number
+
+        //Error Code
+        byte[] temp = error.getBytes();
+        int j = 4; //byte placeholder for header
+
+        for (int i = 0; i < error.getBytes().length; i++) {
+            sendData[j++] = temp[i];
+        }
+
+        //Add 0x0
+        sendData[j++] = 0;
+
+        //Resizing packet here for now
+        byte[] sendSmallData = new byte[j];
+        for (int i = 0; i < j; i++)
+        {
+            sendSmallData[i] = sendData[i];
+        }
+
+        //send DATA packet to client
+        txPacket = new DatagramPacket(sendSmallData,sendSmallData.length,packet.getAddress(), getPort(packet));
+        txPacket = resizePacket(txPacket);
+        socket.send(txPacket);
+        outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
+
+        System.out.println("ERROR Complete: TERMINATING SOCKET");
+        socket.close();
+        System.exit(0);//shutdown after error
+    }
+    	
     //A function that takes a vector of any size and writes its bytes to a file
     public static void saveFile(Vector<byte[]> receivedFile, String filename, Client c)
     {
@@ -431,7 +474,7 @@ class Client extends CommonMethods{
             //receive and create DATA
             byte[] receiveData = new byte[DATA_SIZE];
             rxPacket = new DatagramPacket(receiveData, receiveData.length);
-            this.socket.receive(rxPacket);
+            socket.receive(rxPacket);
             rxPacket = resizePacket(rxPacket);
             outputText(rxPacket, direction.IN, endhost.ERRORSIM, verboseOutput);
             byte[] buffer = new byte[rxPacket.getLength() - 4];
@@ -452,14 +495,15 @@ class Client extends CommonMethods{
                     //create and send Ack packet with block # of received packet
                     byte[] sendData = new byte[]{0, 4, receiveData[2], receiveData[3]};
                     txPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getLocalHost(), port);
-                    this.socket.send(this.txPacket);
+                    socket.send(txPacket);
                     outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
 
                     if (rxPacket.getLength() < DATA_SIZE) isValidPkt = false;
                 }
             }
             else
-            {
+            {	
+            	sendError(rxPacket);
                 isValidPkt = false;
             }
         }
@@ -478,7 +522,6 @@ class Client extends CommonMethods{
 
     //A function that implements the WRQ of TFTP client, takes as input the port that the server uses for handling requests and name of the requested file
     public synchronized void writeRequest(int port, String filename) throws IOException {
-        boolean isValidFile = true;
         int blockNum = 1;
         
         Path path = Paths.get(pathname + filename);
@@ -557,7 +600,7 @@ class Client extends CommonMethods{
         DatagramPacket OOBPacket = new DatagramPacket(header, header.length, InetAddress.getLocalHost(), ERRORSIM_PORT);
         DatagramSocket OOBSocket = new DatagramSocket();
         OOBSocket.send(OOBPacket);
-        OOBSocket.close();
+		OOBSocket.close();
 
-    }
+	}
 }

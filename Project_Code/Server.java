@@ -29,7 +29,6 @@ class Server extends CommonMethods implements Runnable
     private boolean isListener = false;
     private boolean quitSignal = false;
     private boolean verboseOutput = false;
-    private static String[] error = new String[2]; // error[0] = errorMessage error[1] = errorCode
 
     private String pathname;
 
@@ -273,19 +272,19 @@ class Server extends CommonMethods implements Runnable
         byte[] data = packet.getData();
         
         File f;
+        File path = new File("./ServerFiles/WRQ/");
         
         //Can do error 1 (file not found)
         //Can do error 2 (access violation)
         if (data[0] == 0 && data[1] == 1)//RRQ
         {
-            f = new File("./" + getFilename(packet));
+            f = new File("./ServerFiles/" + getFilename(packet));
             if(f.exists() && !f.isDirectory()) {
                 //System.out.println("File Exists!");
             }
             
             else if (f.canRead()==false) {
-            	error[0] = msg[2];
-            	error[1] = "2";   
+            	errorMessage = msg[2];
             	System.out.println(msg[2]);   //access violation.
             }
 
@@ -315,14 +314,12 @@ class Server extends CommonMethods implements Runnable
         }
         
         //Error 3 Disk full or allocation exceeded
-        File path = new File("./ServerFiles/WRQ");
+        
         long diskSpace = path.getFreeSpace();//returns free space on Server in bytes
         if(diskSpace==0 || diskSpace < 100) {//100 is placeholder for vector size()
         	System.out.println(msg[3]);
         	errorMessage = msg[3];
         }
-        
-        //Not sure what to check here
 
         return errorMessage;
 
@@ -334,7 +331,6 @@ class Server extends CommonMethods implements Runnable
     public synchronized void sendReply(DatagramPacket packet, DatagramSocket socket)
     {
         byte[] data = packet.getData();
-        byte[] response = new byte[4];
         String filename = getFilename(packet);
 
         //Extract ErrorSim socket's port from packet
@@ -359,12 +355,6 @@ class Server extends CommonMethods implements Runnable
                 e.printStackTrace();
             }
         }
-        else {                                //SEND 0x0000
-            response[0] = 0;
-            response[1] = 0;
-            response[2] = 0;
-            response[3] = 0;
-        }
     }
 
     public void sendError(DatagramPacket packet) throws Exception
@@ -377,9 +367,6 @@ class Server extends CommonMethods implements Runnable
         sendData[1]=5;
         sendData[2]=0;
         sendData[3]=errorMap.get(error).byteValue(); //Map the error code to the corresponding number
-
-        //if (error == "File not found.")
-        //    sendData[3]=1;
 
         //Error Code
         byte[] temp = error.getBytes();
@@ -407,7 +394,8 @@ class Server extends CommonMethods implements Runnable
 
         System.out.println("ERROR Complete: TERMINATING SOCKET");
         writeSocket.close();
-}
+        System.exit(0);//shutdown after error
+    }
     
     /*
 	    WRQ FLOW
@@ -428,17 +416,15 @@ class Server extends CommonMethods implements Runnable
         if (checkError(packet) != "No Error") {//initial WRQ file error check
         	sendError(packet);
         	socket.close();//lazy quit for now
-        	System.exit(0);
+        	return;
         }
         
         while(true) {//Loop to send ACK and receive DATA until DATA<512 bytes
-            //send ACK packet to Client
-        	
+            
+        	//send ACK packet to Client
             DatagramPacket txPacket = new DatagramPacket(sendData,sendData.length,InetAddress.getLocalHost(),port);
             socket.send(txPacket);
             outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
-            
-            
             
             if(isValidFile) {
 	            //receive DATA packet from Client
@@ -465,7 +451,7 @@ class Server extends CommonMethods implements Runnable
 	            if (checkError(packet) != "No Error") {//check received data
 	            	sendError(packet);
 	            	socket.close();//lazy quit for now
-	            	System.exit(0);
+	            	return;
 	            }
 	            
             }
@@ -492,7 +478,7 @@ class Server extends CommonMethods implements Runnable
         if (checkError(packet) != "No Error") {//initial RRQ file error check
         	sendError(packet);
         	socket.close();//lazy quit for now
-        	System.exit(0);
+        	return;
         }
         
         //Path path = Paths.get("./" + filename);
@@ -509,6 +495,8 @@ class Server extends CommonMethods implements Runnable
         	
         	if (checkError(packet) != "No Error") {
         		sendError(packet);
+        		socket.close();
+        		return;
         	}
         	
             byte[] blockNumBytes= blockNumToBytes(blockNum++);
