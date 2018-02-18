@@ -302,7 +302,6 @@ class Client extends CommonMethods {
 								}
 	
 							} catch (Exception e) {
-								
 							}
 						}else {
 							System.out.println(errorMessage);
@@ -351,7 +350,7 @@ class Client extends CommonMethods {
 				errorMessage = msg[2];
 			}
 		}
-		
+
 		// Can do error 1 (file not found)
 		// Can do error 2 (access violation)
 		if (data[0] == 0 && data[1] == 2) {//WRQ
