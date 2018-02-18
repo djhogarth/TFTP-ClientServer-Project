@@ -319,7 +319,8 @@ class Client extends CommonMethods {
 			}
 		}
 	}
-
+	
+	//Function takes a packet and returns a corresponding error message
 	public synchronized String checkError(DatagramPacket packet) {
 		String errorMessage = "No Error";
 		String[] msg = new String[8];
@@ -387,7 +388,8 @@ class Client extends CommonMethods {
 		return errorMessage;
 
 	}
-
+	
+	//Takes a packet with a file error and sends an ERROR packet back
 	public void sendError(DatagramPacket packet) {
 		String error = checkError(packet);
 

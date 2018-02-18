@@ -258,7 +258,8 @@ class Server extends CommonMethods implements Runnable
 
         return isValid;
     }
-
+    
+    //Function takes a packet and returns a corresponding error message
     public synchronized String checkError(DatagramPacket packet)
     {
     	String errorMessage = "No Error";
@@ -365,7 +366,8 @@ class Server extends CommonMethods implements Runnable
             }
         }
     }
-
+    
+  //Takes a packet with a file error and sends an ERROR packet back
     public void sendError(DatagramPacket packet) throws Exception
     {
         socket = new DatagramSocket();
