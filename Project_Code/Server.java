@@ -351,7 +351,7 @@ class Server extends CommonMethods implements Runnable
             try {
                     readRequest(port, filename);
             } catch (Exception e) {
-            	System.out.println("ACCESS VIOLATION");
+            	System.out.println("ACCESS VIOLATION, Cannot read file.");
             }
         }
         else if (data[0] == 0 && data[1] == 2)  //IF PACKET IS WRQ

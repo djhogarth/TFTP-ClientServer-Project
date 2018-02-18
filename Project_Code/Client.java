@@ -268,17 +268,10 @@ class Client extends CommonMethods {
 					System.out.print("Is it a (r)ead or (w)rite?: ");
 					input = reader.nextLine();
 					c.operation = input;
-					Boolean filePathValid = false;
+					//Boolean filePathValid = false;
 
 					if ((c.operation).equals("write") || (c.operation).equals("w")) {
-						
-						try {	c.txPacket = newDatagram(c.errorSimIP, OPCodes.WRITE, c.filename);}
-						catch (Exception e) {
-							System.out.println("ACCESS VIOLATION");
-						}
-						
-						
-						
+						c.txPacket = newDatagram(c.errorSimIP, OPCodes.WRITE, c.filename);
 						errorMessage = c.checkError(c.txPacket);
 						while (errorMessage.equals("File not found.")) {
 							System.out.print("File Not Found, please enter valid file name: ");
@@ -288,23 +281,12 @@ class Client extends CommonMethods {
 							errorMessage = c.checkError(c.txPacket);
 						}
 						System.out.println("\n--Writing " + c.filename + " to Server.--\n");
-
-						try {
 							c.socket.send(c.txPacket);
 							outputText(c.txPacket, direction.OUT, endhost.ERRORSIM, c.verboseOutput);
 							c.writeRequest(getPort(c.txPacket), c.filename);
-						} catch (Exception e) {
-							e.printStackTrace();
-						}
-					
 					}
 					if ((c.operation).equals("read") || c.operation.equals("r")) {
-				
-						try {	c.txPacket = newDatagram(c.errorSimIP, OPCodes.READ, c.filename); }
-						catch (Exception e) {
-							System.out.println("ACCESS VIOLATION");
-						}
-					
+						c.txPacket = newDatagram(c.errorSimIP, OPCodes.READ, c.filename); 
 						errorMessage = c.checkError(c.txPacket);
 						if(errorMessage =="No Error") {
 							System.out.println("\n--Reading " + c.filename + " from Server.--\n");
@@ -320,8 +302,7 @@ class Client extends CommonMethods {
 								}
 	
 							} catch (Exception e) {
-								e.printStackTrace();
-						
+								
 							}
 						}else {
 							System.out.println(errorMessage);
