@@ -5,7 +5,7 @@
   DATE - 02/17/2018
   DETAILS - Each .java file has its own documentation.
 
-  Source files in code/
+  Source files
   Client.java - Client program
   ErrorSim.java - Intermediate Host/Error Simulator program
   Server.java - Server program
