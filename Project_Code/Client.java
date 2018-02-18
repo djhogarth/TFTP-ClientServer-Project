@@ -335,18 +335,17 @@ class Client extends CommonMethods {
 
 		byte[] data = packet.getData();
 
-		File path = new File("./ClientFiles/");
+		File path = new File(pathname);
 		//path = new File("e:/");//used for testing error 3 - path of full drive
 		long diskSpace = path.getUsableSpace();// returns free space on path in bytes
 		File f;
-		f = new File("./ClientFiles/" + getFilename(packet));
+		f = new File(pathname + getFilename(packet));
 		
 		// Can do error 2 (access violation)
 		// Can do error 3 (Disk full or allocation exceeded.)
 		// Can do error 6 (file already exists)
 		if (data[0] == 0 && data[1] == 1) {//RRQ
 			if (diskSpace == 0) {
-				System.out.println(msg[3]);
 				errorMessage = msg[3];
 			}
 			if (f.exists() && !f.isDirectory()) {
@@ -371,8 +370,7 @@ class Client extends CommonMethods {
 		// Can do error 2 (access violation)
 		// Can do error 3 (Disk full or allocation exceeded.)
 		if (data[0] == 0 && data[1] == 3) {//DATA
-			if (diskSpace == 0 || diskSpace < fileSize) {// 100 is placeholder for vector size()
-				System.out.println(msg[3]);
+			if (diskSpace == 0 || diskSpace < fileSize) {// size of received file
 				errorMessage = msg[3];
 			}
 		}
@@ -528,6 +526,7 @@ class Client extends CommonMethods {
 						isValidPkt = false;
 				}
 			} else {
+				if(receiveData[1]!=5) sendError(rxPacket);//does not send error packet if received error packet
 				isValidPkt = false;
 			}
 		}
@@ -562,7 +561,7 @@ class Client extends CommonMethods {
 			outputText(rxPacket, direction.IN, endhost.ERRORSIM, verboseOutput);
 			
 			
-			if (receiveData[1]==5) return; //Stop Client if it receives an error
+			if (receiveData[1]==5) return; //Stop write if it receives an error
 			if (checkError(rxPacket) != "No Error") {//check for error from server
 	        	sendError(rxPacket);
 	        }
