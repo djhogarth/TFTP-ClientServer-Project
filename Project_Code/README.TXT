@@ -33,13 +33,16 @@
   Enter full file path: ./Large.txt
   Is it a (r)ead or (w)rite?: w
   If this is the last file, enter 'q'. <ENTER>    <--Enter q here to shutdown client
+  
+  TESTING
+  1) To test the "File not Found" error, simply enter a file name not found in ClientFiles(WRQ) and ServerFiles(RRQ). 
 
-ACCESS VIOLATION TEST CASE:
-In order to test this case I have created a text file called ERROR2 located in 
-the clientFiles/ServerFiles, left click them and select properties, go
-to the security tab and then to advanced, from there you should be able
-to disable inheritance, apply and then try to read ERROR2, and we will
-be prompted by the error.
+  2)Access Violation:
+	In order to test this case I have created a text file called ERROR2 located in 
+	the clientFiles/ServerFiles, left click them and select properties, go
+	to the security tab and then to advanced, from there you should be able
+	to disable inheritance, apply and then try to read ERROR2, and we will
+	be prompted by the error.
 
   7)Enter q in Server Console when instructed to shutdown Server
 */
