@@ -275,7 +275,7 @@ class Server extends CommonMethods implements Runnable
         byte[] data = packet.getData();
         
         File f;
-        File path = new File("./ServerFiles/WRQ/");
+        File path = new File("./ServerFiles/");
         //path = new File("e:/");//used for testing error 3 - path of full drive
         long diskSpace = path.getUsableSpace();//returns free space on Server in bytes
         
@@ -304,7 +304,7 @@ class Server extends CommonMethods implements Runnable
         //Can do error 6 (file already exists)
         if (data[0] == 0 && data[1] == 2)//WRQ
         {
-        	f = new File("./ServerFiles/WRQ/" + getFilename(packet));
+        	f = new File("./ServerFiles/" + getFilename(packet));
             if(f.exists() && !f.isDirectory()) {
             	System.out.println(msg[6]); //File already exists.
                 errorMessage = msg[6];              
@@ -560,7 +560,7 @@ class Server extends CommonMethods implements Runnable
         tempArray = new byte[charCount];
 
         //String path = "./WRQ";
-        String path = "./ServerFiles/WRQ/";
+        String path = "./ServerFiles/";
         String outputName = filename;
 
         int tempCount = 0;

@@ -355,14 +355,14 @@ class Client extends CommonMethods {
 		// Can do error 2 (access violation)
 		if (data[0] == 0 && data[1] == 2) {//WRQ
 			if (f.exists() && !f.isDirectory()) {
-				 
+				if (!f.isAbsolute()) {
+	            	errorMessage = msg[2];
+	            	System.out.println(msg[2]);   //access violation.
+	            } 
 			} else {
 				errorMessage = msg[1];
 			}
-			if (!f.isAbsolute()) {
-            	errorMessage = msg[2];
-            	System.out.println(msg[2]);   //access violation.
-            } 
+			
 		}
 
 		// Can do error 2 (access violation)
