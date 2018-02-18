@@ -29,7 +29,6 @@ class Client extends CommonMethods {
 	private static final int ERRORSIM_PORT = 9923;
 	private static final int DATA_SIZE = 516;
 
-	private static boolean accessviolation = false;
 	public InetAddress clientIP, errorSimIP, serverIP;
 	public String pathname, filename, operation, quit;
 	public Vector<byte[]> receivedFile;
@@ -276,8 +275,7 @@ class Client extends CommonMethods {
 						try {	c.txPacket = newDatagram(c.errorSimIP, OPCodes.WRITE, c.filename);}
 						catch (Exception e) {
 							//System.out.println("ACCESS VIOLATION");
-							accessviolation=true;
-							
+	
 						}
 						
 						
@@ -299,7 +297,7 @@ class Client extends CommonMethods {
 						} catch (Exception e) {
 							System.out.println("ACCESS VIOLATION, Cannot write to file.");
 							
-							accessviolation=true;
+					
 						}
 					
 					}
@@ -308,7 +306,7 @@ class Client extends CommonMethods {
 						try {	c.txPacket = newDatagram(c.errorSimIP, OPCodes.READ, c.filename); }
 						catch (Exception e) {
 							System.out.println("ACCESS VIOLATION");
-							accessviolation=true;
+							
 						}
 					
 						errorMessage = c.checkError(c.txPacket);
@@ -327,8 +325,7 @@ class Client extends CommonMethods {
 	
 							} catch (Exception e) {
 								//System.out.println("ACCESS VIOLATION, Cannot read file.");
-								accessviolation=true;
-								
+						
 						
 							}
 						}else {
@@ -380,11 +377,7 @@ class Client extends CommonMethods {
 			}
 		}
 		
-		if (accessviolation=true) {
-			errorMessage = msg[2];
-			
-			
-		}
+	
 		
 		// Can do error 1 (file not found)
 		// Can do error 2 (access violation)

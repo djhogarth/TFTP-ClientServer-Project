@@ -24,6 +24,7 @@ class Server extends CommonMethods implements Runnable
     private static final int ERRORSIM_PORT = 9969;
     private static final int DATA_SIZE = 516;
 
+
     private DatagramSocket socket;
     private DatagramPacket packet;
     private boolean isListener = false;
@@ -122,6 +123,7 @@ class Server extends CommonMethods implements Runnable
                 }
                 catch (Exception e)
                 {
+                
                     System.out.println (e.getStackTrace());
                 }
 
@@ -297,6 +299,8 @@ class Server extends CommonMethods implements Runnable
             }  
         }
         
+  
+        
         //Can do error 2 (access violation)
         //Can do error 3 (Disk full or allocation exceeded.)
         //Can do error 6 (file already exists)
@@ -352,6 +356,7 @@ class Server extends CommonMethods implements Runnable
                     readRequest(port, filename);
             } catch (Exception e) {
             	System.out.println("ACCESS VIOLATION, Cannot read file.");
+          
             }
         }
         else if (data[0] == 0 && data[1] == 2)  //IF PACKET IS WRQ
@@ -360,6 +365,7 @@ class Server extends CommonMethods implements Runnable
                     writeRequest(port, filename);
             } catch (Exception e) {
             	System.out.println("ACCESS VIOLATION");
+            
             }
         }
     }
