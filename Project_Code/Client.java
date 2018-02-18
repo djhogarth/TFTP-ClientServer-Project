@@ -269,7 +269,7 @@ class Client extends CommonMethods {
 					input = reader.nextLine();
 					c.operation = input;
 					//Boolean filePathValid = false;
-
+					
 					if ((c.operation).equals("write") || (c.operation).equals("w")) {
 						c.txPacket = newDatagram(c.errorSimIP, OPCodes.WRITE, c.filename);
 						errorMessage = c.checkError(c.txPacket);
@@ -281,9 +281,14 @@ class Client extends CommonMethods {
 							errorMessage = c.checkError(c.txPacket);
 						}
 						System.out.println("\n--Writing " + c.filename + " to Server.--\n");
+
+						try {
 							c.socket.send(c.txPacket);
 							outputText(c.txPacket, direction.OUT, endhost.ERRORSIM, c.verboseOutput);
 							c.writeRequest(getPort(c.txPacket), c.filename);
+						} catch (Exception e) {
+							e.printStackTrace();
+						}
 					}
 					if ((c.operation).equals("read") || c.operation.equals("r")) {
 						c.txPacket = newDatagram(c.errorSimIP, OPCodes.READ, c.filename); 
@@ -335,7 +340,6 @@ class Client extends CommonMethods {
 		File f;
 		f = new File(pathname + getFilename(packet));
 		
-		// Can do error 2 (access violation)
 		// Can do error 3 (Disk full or allocation exceeded.)
 		// Can do error 6 (file already exists)
 		if (data[0] == 0 && data[1] == 1) {//RRQ
@@ -344,26 +348,21 @@ class Client extends CommonMethods {
 			}
 			if (f.exists() && !f.isDirectory()) {
 				errorMessage = msg[6];
-				
 			}			
-			if (path.canRead() == false) {
-				errorMessage = msg[2];
-			}
 		}
 
 		// Can do error 1 (file not found)
 		// Can do error 2 (access violation)
 		if (data[0] == 0 && data[1] == 2) {//WRQ
 			if (f.exists() && !f.isDirectory()) {
-				if (f.canRead()==false) {
-	            	errorMessage = msg[2];
-	            	System.out.println(msg[2]);   //access violation.
-	            }  
-				// System.out.println("File Exists!");
+				 
 			} else {
 				errorMessage = msg[1];
-				
 			}
+			if (!f.isAbsolute()) {
+            	errorMessage = msg[2];
+            	System.out.println(msg[2]);   //access violation.
+            } 
 		}
 
 		// Can do error 2 (access violation)

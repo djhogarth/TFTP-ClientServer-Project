@@ -284,19 +284,19 @@ class Server extends CommonMethods implements Runnable
         if (data[0] == 0 && data[1] == 1)//RRQ
         {
             f = new File("./ServerFiles/" + getFilename(packet));
+            System.out.print("./ServerFiles/" + getFilename(packet));
             if(f.exists() && !f.isDirectory()) {
                 //System.out.println("File Exists!");
+            	if (f.canRead()==false) {
+	            	errorMessage = msg[2];
+	            	System.out.println(msg[2]);   //access violation.
+	            }  
             }         
             else
             {
                 System.out.println(msg[1]); //File not found.
                 errorMessage = msg[1];
             }
-            f = new File("./ServerFiles/");
-            if (f.canRead()==false) {
-            	errorMessage = msg[2];
-            	System.out.println(msg[2]);   //access violation.
-            }  
         }
 
         //Can do error 2 (access violation)
@@ -353,8 +353,7 @@ class Server extends CommonMethods implements Runnable
             try {
                     readRequest(port, filename);
             } catch (Exception e) {
-            	System.out.println("ACCESS VIOLATION, Cannot read file.");
-          
+            	e.printStackTrace();
             }
         }
         else if (data[0] == 0 && data[1] == 2)  //IF PACKET IS WRQ
@@ -362,8 +361,7 @@ class Server extends CommonMethods implements Runnable
             try {
                     writeRequest(port, filename);
             } catch (Exception e) {
-            	System.out.println("ACCESS VIOLATION");
-            
+            	e.printStackTrace();
             }
         }
     }
@@ -486,8 +484,6 @@ class Server extends CommonMethods implements Runnable
         
         if (checkError(packet) != "No Error") {//initial RRQ file error check
         	sendError(packet);
-        	socket.close();//lazy quit for now
-        	return;
         }
         
         //Path path = Paths.get("./" + filename);
@@ -502,11 +498,7 @@ class Server extends CommonMethods implements Runnable
         
         while(!onLastBlock) {//Loop to send DATA and receive ACK until DATA<512 bytes
         	
-        	if (checkError(packet) != "No Error") {
-        		sendError(packet);
-        		socket.close();
-        		return;
-        	}
+        	
         	
             byte[] blockNumBytes= blockNumToBytes(blockNum++);
             byte[] sendData = new byte[DATA_SIZE];
@@ -546,6 +538,9 @@ class Server extends CommonMethods implements Runnable
             socket.receive(rxPacket);
             rxPacket = resizePacket(rxPacket);
             outputText(rxPacket, direction.IN, endhost.ERRORSIM, verboseOutput);
+            if (checkError(rxPacket) != "No Error") {
+        		sendError(rxPacket);
+        	}
         }
         System.out.println("RRQ Complete: TERMINATING SOCKET");
         socket.close();
