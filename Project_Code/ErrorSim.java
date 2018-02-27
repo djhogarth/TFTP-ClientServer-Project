@@ -6,6 +6,7 @@
 */
 
 import java.net.*;
+import java.util.Scanner;
 
 class ErrorSim extends CommonMethods
 {
@@ -27,12 +28,53 @@ class ErrorSim extends CommonMethods
     //Upon receipt, forwards it to Client.java
     public static void main(String args[]) throws Exception
     {
+        boolean inputValid = false;
+        String input = "";
+        boolean verboseOutput = false;
+        boolean showMenu = true;
+        boolean testMode = false;
+        Scanner reader = new Scanner(System.in); // Reading from System.in
+
         System.out.println("TFTP ErrorSim is running.\n");
         DatagramSocket clientSocket = new DatagramSocket();
         DatagramSocket serverSocket = new DatagramSocket();
         //serverSocket.setSoTimeout(5000);
 
-        boolean verboseOutput = false;
+
+        while (showMenu) {
+            inputValid = false;
+
+            while (!inputValid) {
+                System.out.print("Would you like to run the ErrorSim in (t)est or (n)ormal mode? ");
+                input = reader.nextLine();
+                input = input.toLowerCase();
+
+                switch (input) {
+                    case "t":
+                        inputValid = true;
+                        showMenu = false;
+                        testMode = true; //testing operation
+                        break;
+                    case "n":
+                        inputValid = true;
+                        showMenu = false;
+                        testMode = false; //normal operation
+                        break;
+                    default:
+                        System.out.println("The input is not valid.");
+                }
+            }
+
+            if (testMode)
+            {
+                System.out.println("This will need to be implemented.");
+            }
+            else
+            {
+                System.out.println("You've chosen normal operation.");
+            }
+
+        }
 
         int tempPort=0;
 
