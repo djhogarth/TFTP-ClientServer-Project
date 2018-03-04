@@ -42,7 +42,8 @@ class ErrorSim extends CommonMethods
         long delay = 0; //sleep in milliseconds
         boolean isLost = false; //is current packet lost
         DatagramPacket dupePack = null;
-        int delayBkNum = 2; //block number to replace with duplicate
+        byte delayOpcode = 0; //DATA,ACK delayed packet opcode to replace 
+        int delayBkNum = 2; //block number to replace
         
         System.out.println("TFTP ErrorSim is running.\n");
         DatagramSocket clientSocket = new DatagramSocket();
@@ -149,7 +150,8 @@ class ErrorSim extends CommonMethods
                 	if(blockNumToBytes(testBlockNum)[0]==rxData[2] && blockNumToBytes(testBlockNum)[1]==rxData[3]) {//Duplicate packet
                 		dupePack = txPacket;
                 	}
-                	else if(blockNumToBytes(delayBkNum)[0]==rxData[2] && blockNumToBytes(delayBkNum)[1]==rxData[3]) {//Replace packet with duplicate
+                }else if(mode==3 && rxData[1]==delayOpcode) {//Test Mode 3: Replace packet
+                	if(blockNumToBytes(delayBkNum)[0]==rxData[2] && blockNumToBytes(delayBkNum)[1]==rxData[3]) {//Replace packet with duplicate
                 		txPacket = dupePack;
                 	}
                 }
@@ -213,7 +215,8 @@ class ErrorSim extends CommonMethods
                     	if(blockNumToBytes(testBlockNum)[0]==rxData[2] && blockNumToBytes(testBlockNum)[1]==rxData[3]) {//Duplicate packet
                     		dupePack = txPacket;
                     	}
-                    	else if(blockNumToBytes(delayBkNum)[0]==rxData[2] && blockNumToBytes(delayBkNum)[1]==rxData[3]) {//Replace packet with duplicate
+                    }else if(mode==3 && rxData[1]==delayOpcode) {//Test Mode 3: Replace packet
+                    	if(blockNumToBytes(delayBkNum)[0]==rxData[2] && blockNumToBytes(delayBkNum)[1]==rxData[3]) {//Replace packet with duplicate
                     		txPacket = dupePack;
                     	}
                     }
