@@ -311,7 +311,7 @@ class Server extends CommonMethods implements Runnable
                 errorMessage = msg[6];              
             }        	    
             
-            f = new File("./ServerFiles/" + getFilename(packet));
+            f = new File("./ServerFiles/");
             if (!f.canWrite()) {
             	errorMessage = msg[2];  
             	System.out.println(msg[2]);   //access violation.

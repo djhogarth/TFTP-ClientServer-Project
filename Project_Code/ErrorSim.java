@@ -34,12 +34,20 @@ class ErrorSim extends CommonMethods
         boolean showMenu = true;
         boolean testMode = false;
         Scanner reader = new Scanner(System.in); // Reading from System.in
-
+        
+        //testmode variables
+        int mode = 0;	//0=normal,1=lose a packet,2=delay a packet,3=duplicate a packet and choose when to send it
+        byte testOpcode = 0; //RRQ,WRQ,DATA,ACK
+        int testBlockNum = -1; //0 to 65335 - for lost/delayed/duplicate DATA/ACK
+        long delay = 0; //sleep in milliseconds
+        boolean isLost = false; //is current packet lost
+        DatagramPacket dupePack = null;
+        int delayBkNum = 2; //block number to replace with duplicate
+        
         System.out.println("TFTP ErrorSim is running.\n");
         DatagramSocket clientSocket = new DatagramSocket();
         DatagramSocket serverSocket = new DatagramSocket();
         //serverSocket.setSoTimeout(5000);
-
 
         while (showMenu) {
             inputValid = false;
@@ -76,17 +84,11 @@ class ErrorSim extends CommonMethods
 
         }
 
-        int tempPort=0;
+        int tempPort = 0;
 
         try {
             clientSocket = new DatagramSocket(CLIENT_PORT);
             //clientSocket.setSoTimeout(5000);
-        } catch (SocketException se) {
-            se.printStackTrace();
-            System.exit(1);
-        }
-
-        try {
             serverSocket = new DatagramSocket();
         } catch (SocketException se) {
             se.printStackTrace();
@@ -97,8 +99,7 @@ class ErrorSim extends CommonMethods
 
         boolean lastDataPkt = false;
 
-        while(true)
-        {
+        while(true){
             try {
                 DatagramPacket rxPacket = new DatagramPacket(rxData, rxData.length);
                 DatagramPacket txPacket;
@@ -125,27 +126,55 @@ class ErrorSim extends CommonMethods
 
                 InetSocketAddress temp_add = (InetSocketAddress) rxPacket.getSocketAddress();
                 int client_port = temp_add.getPort();
-
+                
                 //Send to SERVER listener or last Thread
                 txPacket = rxPacket;
                 txPacket.setPort(SERVER_PORT);
+                
+                if(mode==1 && rxData[1]==testOpcode) {//Test Mode 1: Lost Packet
+                	if(rxData[1]==1 || rxData[1]==2) {//Checks if packet is RRQ or WRQ
+                		isLost=true;
+                	}
+                	else if(blockNumToBytes(testBlockNum)[0]==rxData[2] && blockNumToBytes(testBlockNum)[1]==rxData[3]) {//Otherwise check the block number
+                		isLost=true;
+                	}
+                }else if(mode==2 && rxData[1]==testOpcode) {//Test Mode 2: Delay Packet
+                	if(rxData[1]==1 || rxData[1]==2) {//Checks if packet is RRQ or WRQ
+                		Thread.sleep(delay);
+                	}
+                	else if(blockNumToBytes(testBlockNum)[0]==rxData[2] && blockNumToBytes(testBlockNum)[1]==rxData[3]) {//Otherwise check the block number
+                		Thread.sleep(delay);
+                	}
+                }else if(mode==3 && rxData[1]==testOpcode) {//Test Mode 3: Duplicate Packet
+                	if(blockNumToBytes(testBlockNum)[0]==rxData[2] && blockNumToBytes(testBlockNum)[1]==rxData[3]) {//Duplicate packet
+                		dupePack = txPacket;
+                	}
+                	else if(blockNumToBytes(delayBkNum)[0]==rxData[2] && blockNumToBytes(delayBkNum)[1]==rxData[3]) {//Replace packet with duplicate
+                		txPacket = dupePack;
+                	}
+                }
+                
+                
                 if(rxData[1]==3||rxData[1]==4) {
                     txPacket.setPort(tempPort);
                 }
                 else {
                     txPacket.setPort(SERVER_PORT);
                 }
-                serverSocket.send(txPacket);
+                
+                if(!isLost) {//Don't send lost packet
+                	serverSocket.send(txPacket);
+                	outputText(txPacket, direction.OUT, endhost.SERVER, verboseOutput);
+                }
+                isLost=false;
 
                 if (!isOOB(txPacket)) {
-
-                    outputText(txPacket, direction.OUT, endhost.SERVER, verboseOutput);
+                	//outputText(txPacket, direction.OUT, endhost.SERVER, verboseOutput);
                 }
                 else
                 {
                     lastDataPkt = true;
                 }
-
 
                 if (!lastDataPkt) {
                     //Receive from SERVER
@@ -160,13 +189,42 @@ class ErrorSim extends CommonMethods
                     if (rxData[1] == 3 || rxData[1] == 4) {
                         tempPort = rxPacket.getPort();
                     }
-
+                    
                     //Send to CLIENT
                     txPacket = rxPacket;
                     txPacket.setPort(client_port);
                     txPacket.setAddress(InetAddress.getLocalHost());
-                    clientSocket.send(txPacket);
-                    outputText(txPacket, direction.OUT, endhost.CLIENT, verboseOutput);
+                    
+                    if(mode==1 && rxData[1]==testOpcode) {//Test Mode 1: Lost Packet
+                    	if(rxData[1]==1 || rxData[1]==2) {//Checks if packet is RRQ or WRQ
+                    		isLost=true;
+                    	}
+                    	else if(blockNumToBytes(testBlockNum)[0]==rxData[2] && blockNumToBytes(testBlockNum)[1]==rxData[3]) {//Otherwise check the block number
+                    		isLost=true;
+                    	}
+                    }else if(mode==2 && rxData[1]==testOpcode) {//Test Mode 2: Delay Packet
+                    	if(rxData[1]==1 || rxData[1]==2) {//Checks if packet is RRQ or WRQ
+                    		Thread.sleep(delay);
+                    	}
+                    	else if(blockNumToBytes(testBlockNum)[0]==rxData[2] && blockNumToBytes(testBlockNum)[1]==rxData[3]) {//Otherwise check the block number
+                    		Thread.sleep(delay);
+                    	}
+                    }else if(mode==3 && rxData[1]==testOpcode) {//Test Mode 3: Duplicate Packet
+                    	if(blockNumToBytes(testBlockNum)[0]==rxData[2] && blockNumToBytes(testBlockNum)[1]==rxData[3]) {//Duplicate packet
+                    		dupePack = txPacket;
+                    	}
+                    	else if(blockNumToBytes(delayBkNum)[0]==rxData[2] && blockNumToBytes(delayBkNum)[1]==rxData[3]) {//Replace packet with duplicate
+                    		txPacket = dupePack;
+                    	}
+                    }
+                    
+                    if(!isLost) {//Don't send lost packet
+                    	clientSocket.send(txPacket);
+                    	outputText(txPacket, direction.OUT, endhost.CLIENT, verboseOutput);
+                    }
+                    isLost=false;
+                    
+                    
                 }
             }
             catch (SocketTimeoutException ste)
