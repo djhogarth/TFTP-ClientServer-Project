@@ -551,12 +551,18 @@ class Client extends CommonMethods {
 		int remainderLastBlock = (file.length % 512);
 		boolean onLastBlock = false;
 		int j = 0;
+		byte[] sendData = new byte[] {0,0,0,0};
 
 		while (true) {// Loop to receive ACK and send DATA until sent DATA<512 bytes
 			// create and receive ACK
 			byte[] receiveData = new byte[DATA_SIZE];
 			rxPacket = new DatagramPacket(receiveData, receiveData.length);
-			socket.receive(rxPacket);
+			
+			while (true) {// Loop receive from server until either Valid ACK or ERROR is received
+				socket.receive(rxPacket);
+				if(receiveData[1]==5 || (sendData[2]==receiveData[2] && sendData[3]==receiveData[3]))
+					break;
+			}
 			rxPacket = resizePacket(rxPacket);
 			outputText(rxPacket, direction.IN, endhost.ERRORSIM, verboseOutput);
 			
@@ -568,7 +574,7 @@ class Client extends CommonMethods {
 			
 			// create send DATA
 			byte[] blockNumBytes = blockNumToBytes(blockNum++);
-			byte[] sendData = new byte[DATA_SIZE];
+			sendData = new byte[DATA_SIZE];
 			sendData[0] = 0;
 			sendData[1] = 3;
 			sendData[2] = blockNumBytes[0];

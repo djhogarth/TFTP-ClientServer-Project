@@ -534,10 +534,15 @@ class Server extends CommonMethods implements Runnable
             txPacket = resizePacket(txPacket);
             socket.send(txPacket);
             outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
-
+            
+            //receive ACK packet from client
             byte[] receiveData = new byte[4];
             DatagramPacket rxPacket = new DatagramPacket(receiveData, receiveData.length);
-            socket.receive(rxPacket);
+            while (true) {//loop receive Client until valid ACK or ERROR is received
+            	socket.receive(rxPacket);
+            	if(receiveData[1]==5 || (sendData[2]==receiveData[2] && sendData[3]==receiveData[3]))
+            		break;
+            }
             rxPacket = resizePacket(rxPacket);
             outputText(rxPacket, direction.IN, endhost.ERRORSIM, verboseOutput);
             if (checkError(rxPacket) != "No Error") {

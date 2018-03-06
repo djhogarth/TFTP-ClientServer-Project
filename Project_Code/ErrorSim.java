@@ -152,6 +152,7 @@ class ErrorSim extends CommonMethods
                 	}
                 }else if(mode==3 && rxData[1]==delayOpcode) {//Test Mode 3: Replace packet
                 	if(blockNumToBytes(delayBkNum)[0]==rxData[2] && blockNumToBytes(delayBkNum)[1]==rxData[3]) {//Replace packet with duplicate
+                		Thread.sleep(delay);
                 		txPacket = dupePack;
                 	}
                 }
@@ -217,6 +218,7 @@ class ErrorSim extends CommonMethods
                     	}
                     }else if(mode==3 && rxData[1]==delayOpcode) {//Test Mode 3: Replace packet
                     	if(blockNumToBytes(delayBkNum)[0]==rxData[2] && blockNumToBytes(delayBkNum)[1]==rxData[3]) {//Replace packet with duplicate
+                    		Thread.sleep(delay);
                     		txPacket = dupePack;
                     	}
                     }
