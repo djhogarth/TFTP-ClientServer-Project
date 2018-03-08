@@ -130,7 +130,7 @@ class Client extends CommonMethods {
 		String optionsMenu = "\nOptions:\n(pwd)       - Print Working Directory" + "\n(cd)        - Change Directory"
 				+ "\n(dir)       - List files in working directory" + "\n(v)erbose   - Verbose Output"
 				+ "\n(q)uiet     - Quiet Output" + "\n(ip)        - Change the server's IP address"
-				+ "\n(m)ode      - Normal or Test Modes" + "\n(b)ack      - Back to main menu" + "\n";
+				+ "\n(b)ack      - Back to main menu" + "\n";
 
 		while (true) {
 			while (showMainMenu) {
@@ -217,11 +217,6 @@ class Client extends CommonMethods {
 						break;
 					case "ip":
 						System.out.print("Enter Server's IP Address: ");
-						System.out.println("-- Not implemented yet --");
-						inputValid = true;
-						break;
-					case "m":
-						System.out.print("Choose (n)ormal or (t)est mode: ");
 						System.out.println("-- Not implemented yet --");
 						inputValid = true;
 						break;
@@ -423,7 +418,6 @@ class Client extends CommonMethods {
 		try {
 			socket.send(txPacket);
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		

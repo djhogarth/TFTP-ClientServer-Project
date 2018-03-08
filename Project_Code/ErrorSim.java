@@ -50,6 +50,17 @@ class ErrorSim extends CommonMethods
         DatagramSocket serverSocket = new DatagramSocket();
         //serverSocket.setSoTimeout(5000);
 
+        int tempPort = 0;
+
+        try {
+            clientSocket = new DatagramSocket(CLIENT_PORT);
+            //clientSocket.setSoTimeout(5000);
+            serverSocket = new DatagramSocket();
+        } catch (SocketException se) {
+            se.printStackTrace();
+            System.exit(1);
+        }
+
         while (showMenu) {
             inputValid = false;
 
@@ -68,33 +79,127 @@ class ErrorSim extends CommonMethods
                         inputValid = true;
                         showMenu = false;
                         testMode = false; //normal operation
+                        System.out.println("You've chosen normal operation.\n");
                         break;
                     default:
                         System.out.println("The input is not valid.");
                 }
             }
-
-            if (testMode)
-            {
-                System.out.println("This will need to be implemented.");
-            }
-            else
-            {
-                System.out.println("You've chosen normal operation.");
-            }
-
         }
 
-        int tempPort = 0;
+        if (testMode) {
+            System.out.print("\nTest Mode Options: \n"
+                    + "(1)\t- Lose a Packet\n"
+                    + "(2)\t- Delay a Packet\n"
+                    + "(3)\t- Duplicate a Packet\n"
+                    + "(c)\t- Cancel Test Mode\n");
 
-        try {
-            clientSocket = new DatagramSocket(CLIENT_PORT);
-            //clientSocket.setSoTimeout(5000);
-            serverSocket = new DatagramSocket();
-        } catch (SocketException se) {
-            se.printStackTrace();
-            System.exit(1);
+            inputValid = false;
+
+            while (!inputValid) {
+                System.out.print("Please choose an option: ");
+                input = reader.nextLine();
+                input = input.toLowerCase();
+
+                switch (input) {
+                    case "1":
+                        inputValid = true;
+                        mode = 1;
+                        break;
+                    case "2":
+                        inputValid = true;
+                        mode = 2;
+                        break;
+                    case "3":
+                        inputValid = true;
+                        mode = 3;
+                        break;
+                    case "c":
+                        inputValid = true;
+                        testMode = false;
+                        System.out.println("You've chosen normal operation.\n");
+                        break;
+                    default:
+                        System.out.println("The input is not valid.");
+                }
+            }
         }
+
+        if (mode != 0)
+        {
+            //1=lose a packet,2=delay a packet,3=duplicate a packet and choose when to send it
+            inputValid = false;
+
+            if (mode == 1) {
+                System.out.print("\nLosing a Packet! Which packet type is being dropped? \n");
+                System.out.print("(1)\t- Read Request\n"
+                        + "(2)\t- Write Request\n"
+                        + "(3)\t- Data\n"
+                        + "(4)\t- Acknowledgement\n"
+                        + "(5)\t- Error\n\n");
+
+
+                while (!inputValid) {
+                    System.out.print("What kind of packet would you like to lose? ");
+                    input = reader.nextLine();
+                    input = input.toLowerCase();
+
+                    switch (input) {
+                        case "1":
+                            inputValid = true;
+                            testOpcode = 1;
+                            System.out.println("The next RRQ will be dropped.\n");
+                            break;
+                        case "2":
+                            inputValid = true;
+                            testOpcode = 2;
+                            System.out.println("The next WRQ will be dropped.\n");
+                            break;
+                        case "3":
+                            inputValid = true;
+                            testOpcode = 3;
+                            break;
+                        case "4":
+                            inputValid = true;
+                            testOpcode = 4;
+                            break;
+                        case "5":
+                            inputValid = true;
+                            testOpcode = 5;
+                            System.out.println("The next ERROR will be dropped.\n");
+                            break;
+                        default:
+                            System.out.println("The input is not valid.");
+                    }
+                }
+
+                if (testOpcode == 3 || testOpcode == 4) {
+                    inputValid = false;
+
+                    while (!inputValid) {
+                        System.out.print("What packet/block number would you like to lose? ");
+                        input = reader.nextLine();
+                        int tempNum = -1;
+
+                        try {
+                            tempNum = Integer.valueOf(input);
+                            if (tempNum > 0) {
+                                inputValid = true;
+                                testBlockNum = tempNum;
+                            }
+                        }
+                        catch (Exception e) {
+                            System.out.println("The input is not valid.");
+                        }
+                    }
+                    if (testOpcode == 3)
+                        System.out.println("DATA Packet# " + testBlockNum + " will be dropped.\n");
+                    if (testOpcode == 4)
+                        System.out.println("ACK Packet# " + testBlockNum + " will be dropped.\n");
+                }
+            }
+        }
+
 
         byte[] rxData = new byte[DATA_SIZE];
 
