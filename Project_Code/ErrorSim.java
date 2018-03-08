@@ -43,7 +43,7 @@ class ErrorSim extends CommonMethods
         boolean isLost = false; //is current packet lost
         DatagramPacket dupePack = null;
         byte delayOpcode = 0; //DATA,ACK delayed packet opcode to replace 
-        int delayBkNum = 2; //block number to replace
+        int delayBkNum = 0; //block number to replace
         
         System.out.println("TFTP ErrorSim is running.\n");
         DatagramSocket clientSocket = new DatagramSocket();
@@ -131,7 +131,7 @@ class ErrorSim extends CommonMethods
             inputValid = false;
 
             if (mode == 1) {
-                System.out.print("\nLosing a Packet! Which packet type is being dropped? \n");
+                System.out.print("\nLosing a Packet! \n");
                 System.out.print("(1)\t- Read Request\n"
                         + "(2)\t- Write Request\n"
                         + "(3)\t- Data\n"
@@ -140,7 +140,7 @@ class ErrorSim extends CommonMethods
 
 
                 while (!inputValid) {
-                    System.out.print("What kind of packet would you like to lose? ");
+                    System.out.print("Which packet type is being dropped?  ");
                     input = reader.nextLine();
                     input = input.toLowerCase();
 
@@ -197,6 +197,178 @@ class ErrorSim extends CommonMethods
                     if (testOpcode == 4)
                         System.out.println("ACK Packet# " + testBlockNum + " will be dropped.\n");
                 }
+            }
+
+            if (mode == 2) {
+                System.out.print("\nDelaying a Packet! \n");
+                System.out.print("(1)\t- Read Request\n"
+                        + "(2)\t- Write Request\n"
+                        + "(3)\t- Data\n"
+                        + "(4)\t- Acknowledgement\n"
+                        + "(5)\t- Error\n\n");
+
+
+                while (!inputValid) {
+                    System.out.print("Which packet type is being delayed? ");
+                    input = reader.nextLine();
+                    input = input.toLowerCase();
+
+                    switch (input) {
+                        case "1":
+                            inputValid = true;
+                            testOpcode = 1;
+                            delayOpcode = 1;
+                            break;
+                        case "2":
+                            inputValid = true;
+                            testOpcode = 2;
+                            delayOpcode = 2;
+                            break;
+                        case "3":
+                            inputValid = true;
+                            testOpcode = 3;
+                            delayOpcode = 3;
+                            break;
+                        case "4":
+                            inputValid = true;
+                            testOpcode = 4;
+                            delayOpcode = 4;
+                            break;
+                        case "5":
+                            inputValid = true;
+                            testOpcode = 5;
+                            delayOpcode = 5;
+                            break;
+                        default:
+                            System.out.println("The input is not valid.");
+                    }
+                }
+
+                if (testOpcode == 3 || testOpcode == 4) {
+                    inputValid = false;
+
+                    while (!inputValid) {
+                        System.out.print("What packet/block number would you like to delay? ");
+                        input = reader.nextLine();
+                        int tempNum = -1;
+
+                        try {
+                            tempNum = Integer.valueOf(input);
+                            if (tempNum > 0) {
+                                inputValid = true;
+                                delayBkNum = tempNum;
+                            }
+                        }
+                        catch (Exception e) {
+                            System.out.println("The input is not valid.");
+                        }
+                    }
+                }
+
+                //Delay Amount
+                inputValid = false;
+                while (!inputValid) {
+                    System.out.print("How long will the packet be delayed (in ms)? ");
+                    input = reader.nextLine();
+                    int tempNum = -1;
+
+                    try {
+                        tempNum = Integer.valueOf(input);
+                        if (tempNum > 0) {
+                            inputValid = true;
+                            delay = tempNum;
+                        }
+                    }
+                    catch (Exception e) {
+                        System.out.println("The input is not valid.");
+                    }
+                }
+
+                if (testOpcode == 1)
+                    System.out.println("RRQ will be delayed by " + delay + " ms.\n");
+                if (testOpcode == 2)
+                    System.out.println("WRQ will be delayed by " + delay + " ms.\n");
+                if (testOpcode == 3)
+                    System.out.println("DATA Packet# " + delayBkNum + " will be delayed by " + delay + " ms.\n");
+                if (testOpcode == 4)
+                    System.out.println("ACK Packet# " + delayBkNum + " will be delayed by " + delay + " ms.\n");
+                if (testOpcode == 5)
+                    System.out.println("ERROR will be delayed by " + delay + " ms.\n");
+
+            }
+
+
+            if (mode == 3) {
+                System.out.print("\nDuplicating a Packet! \n");
+                System.out.print("(1)\t- Read Request\n"
+                        + "(2)\t- Write Request\n"
+                        + "(3)\t- Data\n"
+                        + "(4)\t- Acknowledgement\n"
+                        + "(5)\t- Error\n\n");
+
+
+                while (!inputValid) {
+                    System.out.print("Which packet type is being duplicated? ");
+                    input = reader.nextLine();
+                    input = input.toLowerCase();
+
+                    switch (input) {
+                        case "1":
+                            inputValid = true;
+                            testOpcode = 1;
+                            break;
+                        case "2":
+                            inputValid = true;
+                            testOpcode = 2;
+                            break;
+                        case "3":
+                            inputValid = true;
+                            testOpcode = 3;
+                            break;
+                        case "4":
+                            inputValid = true;
+                            testOpcode = 4;
+                            break;
+                        case "5":
+                            inputValid = true;
+                            testOpcode = 5;
+                            break;
+                        default:
+                            System.out.println("The input is not valid.");
+                    }
+                }
+
+                if (testOpcode == 3 || testOpcode == 4) {
+                    inputValid = false;
+
+                    while (!inputValid) {
+                        System.out.print("What packet/block number would you like to duplicate? ");
+                        input = reader.nextLine();
+                        int tempNum = -1;
+
+                        try {
+                            tempNum = Integer.valueOf(input);
+                            if (tempNum > 0) {
+                                inputValid = true;
+                                testBlockNum = tempNum;
+                            }
+                        }
+                        catch (Exception e) {
+                            System.out.println("The input is not valid.");
+                        }
+                    }
+                }
+
+                if (testOpcode == 1)
+                    System.out.println("RRQ will be duplicated.\n");
+                if (testOpcode == 2)
+                    System.out.println("WRQ will be duplicated.\n");
+                if (testOpcode == 3)
+                    System.out.println("DATA Packet# " + testBlockNum + " will be duplicated.\n");
+                if (testOpcode == 4)
+                    System.out.println("ACK Packet# " + testBlockNum + " will be duplicated.\n");
+                if (testOpcode == 5)
+                    System.out.println("ERROR will be duplicated.\n");
             }
         }
 
