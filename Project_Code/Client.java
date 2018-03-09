@@ -565,8 +565,8 @@ class Client extends CommonMethods {
 	// that the server uses for handling requests and name of the requested file
 	public synchronized void writeRequest(int port, String filename) throws IOException {
 		int blockNum = 1;
-		int numTransmits = 3; //Number of re-transmits
-		int transmitsLeft = numTransmits;
+		//int numTransmits = 3; //Number of re-transmits
+		//int transmitsLeft = numTransmits;
 		Path path = Paths.get(pathname + filename);
 		byte[] file = Files.readAllBytes(path);
 		int totalBlocksRequired = (file.length / 512) + 1;
@@ -578,7 +578,7 @@ class Client extends CommonMethods {
 
 		while (true) {// Loop to receive ACK and send DATA until sent DATA<512 bytes
 			// create and receive ACK
-			while (numTransmits-- > 0) {
+			//while (numTransmits-- > 0) {
 			byte[] receiveData = new byte[DATA_SIZE];
 			rxPacket = new DatagramPacket(receiveData, receiveData.length);
 
@@ -650,10 +650,10 @@ class Client extends CommonMethods {
 			{
 				break;
 			}
-			System.out.println("Send attempt " + (numTransmits - transmitsLeft)); 
+			//System.out.println("Send attempt " + (numTransmits - transmitsLeft));
 		}
 	}
-}
+//}
 
 	// Function for sending management packets out of band
 	// These packets will not be displayed in the output for any of the programs
