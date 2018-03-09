@@ -584,6 +584,8 @@ class Client extends CommonMethods {
 		int j = 0;
 		byte[] sendData = new byte[] {0,0,0,0};
 		boolean gotResponse = false; //flag to determine if a response was received from the Server
+		int numResentPkt = 0;
+		//boolean tooManyRetries = false;
 
 		while (true) {// Loop to receive ACK and send DATA until sent DATA<512 bytes
 			// create and receive ACK
@@ -604,6 +606,12 @@ class Client extends CommonMethods {
 				}
 				catch (SocketTimeoutException ste)
 				{
+					if (numResentPkt >= 3) {
+						System.out.println("\n*** No response from Server after three attempts. ***\n");
+						break;
+					}
+
+					numResentPkt++;
 					System.out.println("\n*** No response received from Server... Re-sending packet. ***\n");
 					socket.send(txPacket);
 					outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
