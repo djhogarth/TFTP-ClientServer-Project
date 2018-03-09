@@ -29,7 +29,7 @@ class Client extends CommonMethods {
 	public String pathname, filename, operation, quit;
 	public Vector<byte[]> receivedFile;
 	public int fileSize;//size of received file vector or temp vector
-	private boolean verboseOutput = false; // Quiet output when false
+	private boolean verboseOutput = true; // Quiet output when false
 
 	// Used to determine if a packet is inbound or outbound when displaying its text
 	// public enum direction {
@@ -490,7 +490,7 @@ class Client extends CommonMethods {
 			rxPacket = new DatagramPacket(receiveData, receiveData.length);
 
 			isValidPkt = false;
-			socket.setSoTimeout(5000);
+			socket.setSoTimeout(10000);
 			try {
 				socket.receive(rxPacket);
 			}

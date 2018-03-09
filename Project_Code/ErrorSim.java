@@ -40,7 +40,7 @@ class ErrorSim extends CommonMethods
     {
         boolean inputValid = false;
         String input = "";
-        boolean verboseOutput = false;
+        boolean verboseOutput = true;
         boolean showMenu = true;
         boolean testMode = false;
         Scanner reader = new Scanner(System.in); // Reading from System.in
@@ -196,6 +196,9 @@ class ErrorSim extends CommonMethods
                         System.out.println("DATA Packet# " + testBlockNum + " will be dropped.\n");
                     if (testOpcode == 4)
                         System.out.println("ACK Packet# " + testBlockNum + " will be dropped.\n");
+
+
+                    System.out.println("Block nums to bytes = " + blockNumToBytes(testBlockNum)[0] + " " + blockNumToBytes(testBlockNum)[1]);
                 }
             }
 
@@ -372,7 +375,6 @@ class ErrorSim extends CommonMethods
             }
         }
 
-
         byte[] rxData = new byte[DATA_SIZE];
 
         boolean lastDataPkt = false;
@@ -382,13 +384,14 @@ class ErrorSim extends CommonMethods
                 DatagramPacket rxPacket = new DatagramPacket(rxData, rxData.length);
                 DatagramPacket txPacket;
 
-                //Receive from CLIENT
+                //--- RECEIVE FROM CLIENT ---///
                 clientSocket.receive(rxPacket);
+                rxPacket = resizePacket(rxPacket);
+                InetSocketAddress temp_add = (InetSocketAddress) rxPacket.getSocketAddress();
+                int client_port = temp_add.getPort();
 
                 if (isRequest(rxPacket))
                     lastDataPkt = false;
-
-                rxPacket = resizePacket(rxPacket);
 
                 //---START OF OUT OF BAND MANAGEMENT---//
                 if (!isOOB(rxPacket)) {
@@ -404,8 +407,6 @@ class ErrorSim extends CommonMethods
                 }
                 //---END OF OUT OF BAND MANAGEMENT---//
 
-                InetSocketAddress temp_add = (InetSocketAddress) rxPacket.getSocketAddress();
-                int client_port = temp_add.getPort();
                 
                 //Send to SERVER listener or last Thread
                 txPacket = rxPacket;
@@ -472,33 +473,55 @@ class ErrorSim extends CommonMethods
                     lastDataPkt = true;
                 }
 
-                if (!lastDataPkt && mode != 1) {
-                    //Receive from SERVER
-                    rxPacket = new DatagramPacket(rxData, rxData.length);
-                    serverSocket.receive(rxPacket);
-                    rxPacket = resizePacket(rxPacket);
-                    outputText(rxPacket, direction.IN, endhost.SERVER, verboseOutput);
-                    
-                    if (rxPacket.getData().length < 512 && rxData[1]==3)
-                        lastDataPkt = true;
+                //--- RECEIVE FROM SERVER ---//
+                if (!lastDataPkt && !isLost) {
+                    boolean needPkt = true;
 
-                    if (rxData[1] == 3 || rxData[1] == 4) {
-                        tempPort = rxPacket.getPort();
+                    while (needPkt) {
+                        rxPacket = new DatagramPacket(rxData, rxData.length);
+                        serverSocket.receive(rxPacket);
+                        rxPacket = resizePacket(rxPacket);
+                        outputText(rxPacket, direction.IN, endhost.SERVER, verboseOutput);
+                        needPkt = false;
+
+                        if (rxPacket.getData().length < 512 && rxData[1] == 3)
+                            lastDataPkt = true;
+
+                        if (rxData[1] == 3 || rxData[1] == 4) {
+                            tempPort = rxPacket.getPort();
+                        }
+
+                        //--- Test Mode 1: Lost Packet ---//
+                        if (mode == 1 && rxData[1] == testOpcode) {
+                            if (rxData[1] == 5) {//if packet is ERROR
+                                needPkt = true;
+                                System.out.println("** Dropped an ERROR! **\n");
+                                resetTestVars();
+                            } else if (blockNumToBytes(testBlockNum)[0] == rxData[2] && blockNumToBytes(testBlockNum)[1] == rxData[3]) {//Otherwise check the block number
+                                needPkt = true;
+                                if (rxData[1] == 3) {
+                                    System.out.println("** Dropped a DATA (Block number " + testBlockNum + ") **\n");
+                                }
+                                if (rxData[1] == 4) {
+                                    System.out.println("** Dropped an ACK (Block number " + testBlockNum + ") **\n");
+                                }
+                                resetTestVars();
+                            }
+                            //else
+                             //   isLost = false; //not really, just set to exit the while loop
+                        }
+                        //else
+                        //    isLost = false; //not really, just set to exit the while loop
                     }
+
 
                     //Send to CLIENT
                     txPacket = rxPacket;
                     txPacket.setPort(client_port);
                     txPacket.setAddress(InetAddress.getLocalHost());
-                    
-                    if(mode==1 && rxData[1]==testOpcode) {//Test Mode 1: Lost Packet
-                    	if(rxData[1]==1 || rxData[1]==2) {//Checks if packet is RRQ or WRQ
-                    		isLost=true;
-                    	}
-                    	else if(blockNumToBytes(testBlockNum)[0]==rxData[2] && blockNumToBytes(testBlockNum)[1]==rxData[3]) {//Otherwise check the block number
-                    		isLost=true;
-                    	}
-                    }else if(mode==2 && rxData[1]==testOpcode) {//Test Mode 2: Delay Packet
+
+
+                    if(mode==2 && rxData[1]==testOpcode) {//Test Mode 2: Delay Packet
                     	if(rxData[1]==1 || rxData[1]==2) {//Checks if packet is RRQ or WRQ
                     		Thread.sleep(delay);
                     	}

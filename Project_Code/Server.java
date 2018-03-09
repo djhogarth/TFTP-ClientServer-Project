@@ -29,10 +29,14 @@ class Server extends CommonMethods implements Runnable
     private DatagramPacket packet;
     private boolean isListener = false;
     private boolean quitSignal = false;
-    private boolean verboseOutput = false;
+    private boolean verboseOutput = true;
 
     private String pathname;
-    private int fileSize;//file size of written file 
+    private int fileSize;//file size of written file
+
+    //These Vectors are used to keep track of the current file transfer's state
+    private Vector<Integer> dataCounter; //values stored are the block numbers of data packets sent or received in the current data flow
+    private Vector<Integer> ackCounter; //values stored at the block numbers of ack packets sent or received in the current data flow
     
     //Used to determine if a packet is inbound or outbound when displaying its text
     //public enum direction {
@@ -285,7 +289,7 @@ class Server extends CommonMethods implements Runnable
         if (data[0] == 0 && data[1] == 1)//RRQ
         {
             f = new File("./ServerFiles/" + getFilename(packet));
-            System.out.print("./ServerFiles/" + getFilename(packet));
+            //System.out.print("./ServerFiles/" + getFilename(packet));
             if(f.exists() && !f.isDirectory()) {
                 //System.out.println("File Exists!");
             	if (f.canRead()==false) {
@@ -498,11 +502,12 @@ class Server extends CommonMethods implements Runnable
         boolean onLastBlock = false;
 
         int j=0;
+
+        boolean gotResponse = false;
         
         while(!onLastBlock) {//Loop to send DATA and receive ACK until DATA<512 bytes
-        	
-        	
-        	
+
+            gotResponse = false;
             byte[] blockNumBytes= blockNumToBytes(blockNum++);
             byte[] sendData = new byte[DATA_SIZE];
             sendData[0]=0;
@@ -540,12 +545,25 @@ class Server extends CommonMethods implements Runnable
             //receive ACK packet from client
             byte[] receiveData = new byte[4];
             DatagramPacket rxPacket = new DatagramPacket(receiveData, receiveData.length);
-            while (true) {//loop receive Client until valid ACK or ERROR is received
-            	
-            	socket.receive(rxPacket);
-            	if(receiveData[1]==5 || (sendData[2]==receiveData[2] && sendData[3]==receiveData[3]))
-            		break;
+
+            while (!gotResponse) {// Loop receive from server until either Valid ACK or ERROR is received
+                socket.setSoTimeout(5000);
+                try {
+                    socket.receive(rxPacket);
+
+                    if (receiveData[1] == 5 || (sendData[2] == receiveData[2] && sendData[3] == receiveData[3])) {
+                        gotResponse = true;
+                    }
+                } catch (SocketTimeoutException ste) {
+                    System.out.println("\n*** No response received from Client... Re-sending packet. ***\n");
+                    socket.send(txPacket);
+                    outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
+                    socket.setSoTimeout(0); //infinite socket wait time
+                    gotResponse = false;
+                    //break;
+                }
             }
+
             rxPacket = resizePacket(rxPacket);
             outputText(rxPacket, direction.IN, endhost.ERRORSIM, verboseOutput);
             if (checkError(rxPacket) != "No Error") {
@@ -569,7 +587,6 @@ class Server extends CommonMethods implements Runnable
 
         tempArray = new byte[charCount];
 
-        //String path = "./WRQ";
         String path = "./ServerFiles/";
         String outputName = filename;
 
@@ -581,8 +598,6 @@ class Server extends CommonMethods implements Runnable
                 tempCount++;
             }
         }
-
-        //Can do error checks here
 
         try (FileOutputStream fileOutputStream = new FileOutputStream(path + outputName)) {
             fileOutputStream.write(tempArray);
