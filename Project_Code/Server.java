@@ -438,7 +438,7 @@ class Server extends CommonMethods implements Runnable
             
         	//send ACK packet to Client
             DatagramPacket txPacket = new DatagramPacket(sendData,sendData.length,InetAddress.getLocalHost(),port);
-            socket.setSoTimeout(5000);
+            socket.setSoTimeout(10000);
             socket.send(txPacket);
             outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
             

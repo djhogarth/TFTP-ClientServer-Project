@@ -276,7 +276,7 @@ class Client extends CommonMethods {
 						try {
 							c.socket.send(c.txPacket);
 							outputText(c.txPacket, direction.OUT, endhost.ERRORSIM, c.verboseOutput);
-							c.writeRequest(getPort(c.txPacket), c.filename);
+							c.writeRequest(c.txPacket, c.filename);
 						} catch (Exception e) {
 							e.printStackTrace();
 						}
@@ -563,10 +563,12 @@ class Client extends CommonMethods {
 
 	// A function that implements the WRQ of TFTP client, takes as input the port
 	// that the server uses for handling requests and name of the requested file
-	public synchronized void writeRequest(int port, String filename) throws IOException {
+	public synchronized void writeRequest(DatagramPacket txPacket, String filename) throws IOException {
 		int blockNum = 1;
 		//int numTransmits = 3; //Number of re-transmits
 		//int transmitsLeft = numTransmits;
+
+		int port = getPort(txPacket);
 		Path path = Paths.get(pathname + filename);
 		byte[] file = Files.readAllBytes(path);
 		int totalBlocksRequired = (file.length / 512) + 1;
@@ -574,7 +576,7 @@ class Client extends CommonMethods {
 		boolean onLastBlock = false;
 		int j = 0;
 		byte[] sendData = new byte[] {0,0,0,0};
-		boolean gotResponse = true; //flag to determine if a response was received from the Server
+		boolean gotResponse = false; //flag to determine if a response was received from the Server
 
 		while (true) {// Loop to receive ACK and send DATA until sent DATA<512 bytes
 			// create and receive ACK
@@ -582,26 +584,29 @@ class Client extends CommonMethods {
 			byte[] receiveData = new byte[DATA_SIZE];
 			rxPacket = new DatagramPacket(receiveData, receiveData.length);
 
-			while (true) {// Loop receive from server until either Valid ACK or ERROR is received
+			gotResponse = false;
+
+			while (!gotResponse) {// Loop receive from server until either Valid ACK or ERROR is received
 				socket.setSoTimeout(5000);
 				try {
 					socket.receive(rxPacket);
+					receiveData = rxPacket.getData();
+
+					if(receiveData[1]==5 || (sendData[2]==receiveData[2] && sendData[3]==receiveData[3]))
+						gotResponse = true;
 				}
 				catch (SocketTimeoutException ste)
 				{
-					System.out.println("No response received from Server...");
-					System.out.println("Please try again.\n");
+					System.out.println("\n*** No response received from Server... Re-sending packet. ***\n");
+					socket.send(txPacket);
+					outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
 					socket.setSoTimeout(0); //infinite socket wait time
 					gotResponse = false;
-					break;
 				}
-
-				if(receiveData[1]==5 || (sendData[2]==receiveData[2] && sendData[3]==receiveData[3]))
-					break;
 			}
 
-
 			if (gotResponse) {
+				System.out.println("port = " + getPort(rxPacket));
 				rxPacket = resizePacket(rxPacket);
 				outputText(rxPacket, direction.IN, endhost.ERRORSIM, verboseOutput);
 
