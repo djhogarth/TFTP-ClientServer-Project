@@ -434,6 +434,7 @@ class Server extends CommonMethods implements Runnable
             
         	//send ACK packet to Client
             DatagramPacket txPacket = new DatagramPacket(sendData,sendData.length,InetAddress.getLocalHost(),port);
+            socket.setSoTimeout(5000);
             socket.send(txPacket);
             outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
             
@@ -532,6 +533,7 @@ class Server extends CommonMethods implements Runnable
             //send DATA packet to client
             DatagramPacket txPacket = new DatagramPacket(sendData,sendData.length,InetAddress.getLocalHost(),port);
             txPacket = resizePacket(txPacket);
+            socket.setSoTimeout(5000);
             socket.send(txPacket);
             outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
             
@@ -539,6 +541,7 @@ class Server extends CommonMethods implements Runnable
             byte[] receiveData = new byte[4];
             DatagramPacket rxPacket = new DatagramPacket(receiveData, receiveData.length);
             while (true) {//loop receive Client until valid ACK or ERROR is received
+            	
             	socket.receive(rxPacket);
             	if(receiveData[1]==5 || (sendData[2]==receiveData[2] && sendData[3]==receiveData[3]))
             		break;
