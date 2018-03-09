@@ -8,11 +8,7 @@
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.SocketException;
-import java.net.UnknownHostException;
+import java.net.*;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -293,7 +289,7 @@ class Client extends CommonMethods {
 							try {
 								c.socket.send(c.txPacket);
 								outputText(c.txPacket, direction.OUT, endhost.ERRORSIM, c.verboseOutput);
-								c.receivedFile = c.readRequest(getPort(c.txPacket));
+								c.receivedFile = c.readRequest(c.txPacket);
 								
 	
 								// CHECK ERRORS HERE
@@ -481,47 +477,77 @@ class Client extends CommonMethods {
 	// packet
 	// receivedFile is a vector that stores all byte[] for a file stream; this will
 	// be converted back to a file later
-	public synchronized Vector<byte[]> readRequest(int port) throws Exception {
+	public synchronized Vector<byte[]> readRequest(DatagramPacket p) throws Exception {
 		boolean isValidPkt = true;
+		DatagramPacket txPacket = p;
+		int port = getPort(txPacket);
+
 		Vector<byte[]> tempVector = new Vector<byte[]>();
 
 		while (isValidPkt) {// Loop to receive DATA and send ACK until received DATA<512 bytes
 			// receive and create DATA
 			byte[] receiveData = new byte[DATA_SIZE];
 			rxPacket = new DatagramPacket(receiveData, receiveData.length);
-			socket.receive(rxPacket);
-			rxPacket = resizePacket(rxPacket);
-			outputText(rxPacket, direction.IN, endhost.ERRORSIM, verboseOutput);
-			byte[] buffer = new byte[rxPacket.getLength() - 4];
 
-			// CHECK FOR ERRORS HERE
-			String error = checkError(rxPacket);
-			fileSize=tempVector.size();
-			if (error == "No Error") {
+			isValidPkt = false;
+			socket.setSoTimeout(5000);
+			try {
+				socket.receive(rxPacket);
+			}
+			catch (SocketTimeoutException ste)
+			{
+				System.out.println("No response received from Server...");
+				System.out.println("Please try again.\n");
+				socket.setSoTimeout(0); //infinite socket wait time
+			}
 
-				for (int i = 4; i < rxPacket.getLength(); i++) {
-					buffer[i - 4] = rxPacket.getData()[i];
+			if (!isValidPkt)
+			{
+				if (rxPacket == new DatagramPacket(receiveData, receiveData.length))
+				{
+					System.out.println("No response received from Server...");
+					System.out.println("Please try again.\n");
+					socket.setSoTimeout(0); //infinite socket wait time
 				}
+				else
+					isValidPkt = true;
 
-				tempVector.addElement(buffer);
+			}
 
-				// stop if received packet does not have DATA opcode or DATA is less then 512
-				// bytes
-				if (receiveData[1] != 3)
-					isValidPkt = false;
-				else {
-					// create and send Ack packet with block # of received packet
-					byte[] sendData = new byte[] { 0, 4, receiveData[2], receiveData[3] };
-					txPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getLocalHost(), port);
-					socket.send(txPacket);
-					outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
+			if (isValidPkt) {
+				rxPacket = resizePacket(rxPacket);
+				outputText(rxPacket, direction.IN, endhost.ERRORSIM, verboseOutput);
+				byte[] buffer = new byte[rxPacket.getLength() - 4];
 
-					if (rxPacket.getLength() < DATA_SIZE)
+				// CHECK FOR ERRORS HERE
+				String error = checkError(rxPacket);
+				fileSize = tempVector.size();
+				if (error == "No Error") {
+
+					for (int i = 4; i < rxPacket.getLength(); i++) {
+						buffer[i - 4] = rxPacket.getData()[i];
+					}
+
+					tempVector.addElement(buffer);
+
+					// stop if received packet does not have DATA opcode or DATA is less then 512
+					// bytes
+					if (receiveData[1] != 3)
 						isValidPkt = false;
+					else {
+						// create and send Ack packet with block # of received packet
+						byte[] sendData = new byte[]{0, 4, receiveData[2], receiveData[3]};
+						txPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getLocalHost(), port);
+						socket.send(txPacket);
+						outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
+
+						if (rxPacket.getLength() < DATA_SIZE)
+							isValidPkt = false;
+					}
+				} else {
+					if (receiveData[1] != 5) sendError(rxPacket);//does not send error packet if received error packet
+					isValidPkt = false;
 				}
-			} else {
-				if(receiveData[1]!=5) sendError(rxPacket);//does not send error packet if received error packet
-				isValidPkt = false;
 			}
 		}
 
@@ -546,61 +572,81 @@ class Client extends CommonMethods {
 		boolean onLastBlock = false;
 		int j = 0;
 		byte[] sendData = new byte[] {0,0,0,0};
+		boolean gotResponse = true; //flag to determine if a response was received from the Server
 
 		while (true) {// Loop to receive ACK and send DATA until sent DATA<512 bytes
 			// create and receive ACK
 			byte[] receiveData = new byte[DATA_SIZE];
 			rxPacket = new DatagramPacket(receiveData, receiveData.length);
-			
+
 			while (true) {// Loop receive from server until either Valid ACK or ERROR is received
-				socket.receive(rxPacket);
+				socket.setSoTimeout(5000);
+				try {
+					socket.receive(rxPacket);
+				}
+				catch (SocketTimeoutException ste)
+				{
+					System.out.println("No response received from Server...");
+					System.out.println("Please try again.\n");
+					socket.setSoTimeout(0); //infinite socket wait time
+					gotResponse = false;
+					break;
+				}
+
 				if(receiveData[1]==5 || (sendData[2]==receiveData[2] && sendData[3]==receiveData[3]))
 					break;
 			}
-			rxPacket = resizePacket(rxPacket);
-			outputText(rxPacket, direction.IN, endhost.ERRORSIM, verboseOutput);
-			
-			
-			if (receiveData[1]==5) return; //Stop write if it receives an error
-			if (checkError(rxPacket) != "No Error") {//check for error from server
-	        	sendError(rxPacket);
-	        }
-			
-			// create send DATA
-			byte[] blockNumBytes = blockNumToBytes(blockNum++);
-			sendData = new byte[DATA_SIZE];
-			sendData[0] = 0;
-			sendData[1] = 3;
-			sendData[2] = blockNumBytes[0];
-			sendData[3] = blockNumBytes[1];
 
-			// Stop after final ACK
-			if (onLastBlock)
-				break;
 
-			// Check if its the last block
-			if (totalBlocksRequired == 1 || file.length - j < 512)
-				onLastBlock = true;
+			if (gotResponse) {
+				rxPacket = resizePacket(rxPacket);
+				outputText(rxPacket, direction.IN, endhost.ERRORSIM, verboseOutput);
 
-			if (!onLastBlock) {
-				for (int i = 4; i < DATA_SIZE && j < file.length; i++) {// 4-515 are for 512 bytes of data
-					sendData[i] = file[j++];
+				if (receiveData[1] == 5) return; //Stop write if it receives an error
+				if (checkError(rxPacket) != "No Error") {//check for error from server
+					sendError(rxPacket);
 				}
-			} else {
-				sendData = new byte[remainderLastBlock + 4];
+
+				// create send DATA
+				byte[] blockNumBytes = blockNumToBytes(blockNum++);
+				sendData = new byte[DATA_SIZE];
 				sendData[0] = 0;
 				sendData[1] = 3;
 				sendData[2] = blockNumBytes[0];
 				sendData[3] = blockNumBytes[1];
-				for (int i = 4; i < remainderLastBlock + 4; i++) {// 4-515 are for 512 bytes of data
-					sendData[i] = file[j++];
-				}
-			}
 
-			txPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getLocalHost(), port);
-			socket.send(txPacket);
-			txPacket = resizePacket(txPacket);
-			outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
+				// Stop after final ACK
+				if (onLastBlock)
+					break;
+
+				// Check if its the last block
+				if (totalBlocksRequired == 1 || file.length - j < 512)
+					onLastBlock = true;
+
+				if (!onLastBlock) {
+					for (int i = 4; i < DATA_SIZE && j < file.length; i++) {// 4-515 are for 512 bytes of data
+						sendData[i] = file[j++];
+					}
+				} else {
+					sendData = new byte[remainderLastBlock + 4];
+					sendData[0] = 0;
+					sendData[1] = 3;
+					sendData[2] = blockNumBytes[0];
+					sendData[3] = blockNumBytes[1];
+					for (int i = 4; i < remainderLastBlock + 4; i++) {// 4-515 are for 512 bytes of data
+						sendData[i] = file[j++];
+					}
+				}
+
+				txPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getLocalHost(), port);
+				socket.send(txPacket);
+				txPacket = resizePacket(txPacket);
+				outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
+			}
+			else
+			{
+				break;
+			}
 		}
 	}
 

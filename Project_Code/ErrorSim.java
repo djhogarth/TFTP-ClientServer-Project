@@ -16,6 +16,16 @@ class ErrorSim extends CommonMethods
     private static final int SERVER_PORT = 9969;
     private static final int DATA_SIZE = 516;
 
+    //testmode variables
+    static int mode = 0;	//0=normal,1=lose a packet,2=delay a packet,3=duplicate a packet and choose when to send it
+    static byte testOpcode = 0; //RRQ,WRQ,DATA,ACK,ERR
+    static int testBlockNum = -1; //0 to 65335 - for lost/delayed/duplicate DATA/ACK
+    static long delay = 0; //sleep in milliseconds
+    static boolean isLost = false; //is current packet lost
+    static DatagramPacket dupePack = null;
+    static byte delayOpcode = 0; //DATA,ACK delayed packet opcode to replace
+    static int delayBkNum = 0; //block number to replace
+
     //Used to determine if a packet is inbound or outbound when displaying its text
     //public enum direction
     //{
@@ -34,17 +44,7 @@ class ErrorSim extends CommonMethods
         boolean showMenu = true;
         boolean testMode = false;
         Scanner reader = new Scanner(System.in); // Reading from System.in
-        
-        //testmode variables
-        int mode = 0;	//0=normal,1=lose a packet,2=delay a packet,3=duplicate a packet and choose when to send it
-        byte testOpcode = 0; //RRQ,WRQ,DATA,ACK
-        int testBlockNum = -1; //0 to 65335 - for lost/delayed/duplicate DATA/ACK
-        long delay = 0; //sleep in milliseconds
-        boolean isLost = false; //is current packet lost
-        DatagramPacket dupePack = null;
-        byte delayOpcode = 0; //DATA,ACK delayed packet opcode to replace 
-        int delayBkNum = 0; //block number to replace
-        
+
         System.out.println("TFTP ErrorSim is running.\n");
         DatagramSocket clientSocket = new DatagramSocket();
         DatagramSocket serverSocket = new DatagramSocket();
@@ -390,6 +390,7 @@ class ErrorSim extends CommonMethods
 
                 rxPacket = resizePacket(rxPacket);
 
+                //---START OF OUT OF BAND MANAGEMENT---//
                 if (!isOOB(rxPacket)) {
                     outputText(rxPacket, direction.IN, endhost.CLIENT, verboseOutput);
                 }
@@ -401,6 +402,7 @@ class ErrorSim extends CommonMethods
                     else
                         verboseOutput = true;
                 }
+                //---END OF OUT OF BAND MANAGEMENT---//
 
                 InetSocketAddress temp_add = (InetSocketAddress) rxPacket.getSocketAddress();
                 int client_port = temp_add.getPort();
@@ -408,15 +410,31 @@ class ErrorSim extends CommonMethods
                 //Send to SERVER listener or last Thread
                 txPacket = rxPacket;
                 txPacket.setPort(SERVER_PORT);
-                
-                if(mode==1 && rxData[1]==testOpcode) {//Test Mode 1: Lost Packet
-                	if(rxData[1]==1 || rxData[1]==2) {//Checks if packet is RRQ or WRQ
+
+                //--- Test Mode 1: Lost Packet ---//
+                if(mode==1 && rxData[1]==testOpcode) {
+                	if(rxData[1]==1) {//if packet is RRQ
                 		isLost=true;
+                		System.out.println("** Dropped a RRQ! **\n");
                 	}
+                	else if(rxData[1]==2) {//if packet is WRQ
+                        isLost=true;
+                        System.out.println("** Dropped a WRQ! **\n");
+                    }
+                    else if(rxData[1]==5) {//if packet is ERROR
+                        isLost=true;
+                        System.out.println("** Dropped an ERROR! **\n");
+                    }
                 	else if(blockNumToBytes(testBlockNum)[0]==rxData[2] && blockNumToBytes(testBlockNum)[1]==rxData[3]) {//Otherwise check the block number
                 		isLost=true;
+                		if (rxData[1]==3)
+                		    System.out.println("** Dropped a DATA (Block number " + testBlockNum + ") **\n");
+                        if (rxData[1]==4)
+                            System.out.println("** Dropped an ACK (Block number " + testBlockNum + ") **\n");
                 	}
-                }else if(mode==2 && rxData[1]==testOpcode) {//Test Mode 2: Delay Packet
+                }
+
+                if(mode==2 && rxData[1]==testOpcode) {//Test Mode 2: Delay Packet
                 	if(rxData[1]==1 || rxData[1]==2) {//Checks if packet is RRQ or WRQ
                 		Thread.sleep(delay);
                 	}
@@ -434,7 +452,6 @@ class ErrorSim extends CommonMethods
                 	}
                 }
                 
-                
                 if(rxData[1]==3||rxData[1]==4) {
                     txPacket.setPort(tempPort);
                 }
@@ -446,7 +463,6 @@ class ErrorSim extends CommonMethods
                 	serverSocket.send(txPacket);
                 	outputText(txPacket, direction.OUT, endhost.SERVER, verboseOutput);
                 }
-                isLost=false;
 
                 if (!isOOB(txPacket)) {
                 	//outputText(txPacket, direction.OUT, endhost.SERVER, verboseOutput);
@@ -456,7 +472,7 @@ class ErrorSim extends CommonMethods
                     lastDataPkt = true;
                 }
 
-                if (!lastDataPkt) {
+                if (!lastDataPkt && mode != 1) {
                     //Receive from SERVER
                     rxPacket = new DatagramPacket(rxData, rxData.length);
                     serverSocket.receive(rxPacket);
@@ -469,7 +485,7 @@ class ErrorSim extends CommonMethods
                     if (rxData[1] == 3 || rxData[1] == 4) {
                         tempPort = rxPacket.getPort();
                     }
-                    
+
                     //Send to CLIENT
                     txPacket = rxPacket;
                     txPacket.setPort(client_port);
@@ -504,9 +520,11 @@ class ErrorSim extends CommonMethods
                     	clientSocket.send(txPacket);
                     	outputText(txPacket, direction.OUT, endhost.CLIENT, verboseOutput);
                     }
-                    isLost=false;
-                    
-                    
+                }
+                else
+                {
+                    if (mode == 1)
+                        resetTestVars();
                 }
             }
             catch (SocketTimeoutException ste)
@@ -514,5 +532,19 @@ class ErrorSim extends CommonMethods
                 System.out.println("Did not receive a packet from CLIENT or SERVER");
             }
         }
+
+    }
+
+    public static void resetTestVars()
+    {
+        //testmode variables
+        mode = 0;	//0=normal,1=lose a packet,2=delay a packet,3=duplicate a packet and choose when to send it
+        testOpcode = 0; //RRQ,WRQ,DATA,ACK,ERR
+        testBlockNum = -1; //0 to 65335 - for lost/delayed/duplicate DATA/ACK
+        delay = 0; //sleep in milliseconds
+        isLost = false; //is current packet lost
+        dupePack = null;
+        delayOpcode = 0; //DATA,ACK delayed packet opcode to replace
+        delayBkNum = 0; //block number to replace
     }
 }
