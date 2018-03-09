@@ -488,6 +488,8 @@ class Server extends CommonMethods implements Runnable
     public synchronized void readRequest(int port,String filename) throws Exception {
 
         int blockNum=1;
+        int numTransmits = 3; //Number of re-transmits
+		int transmitsLeft = numTransmits;
         
         if (checkError(packet) != "No Error") {//initial RRQ file error check
         	sendError(packet);
@@ -506,7 +508,7 @@ class Server extends CommonMethods implements Runnable
         boolean gotResponse = false;
         
         while(!onLastBlock) {//Loop to send DATA and receive ACK until DATA<512 bytes
-
+        	while (transmitsLeft-- > 0) {
             gotResponse = false;
             byte[] blockNumBytes= blockNumToBytes(blockNum++);
             byte[] sendData = new byte[DATA_SIZE];
@@ -540,6 +542,7 @@ class Server extends CommonMethods implements Runnable
             txPacket = resizePacket(txPacket);
             socket.setSoTimeout(5000);
             socket.send(txPacket);
+            System.out.println("Send attempt " + (numTransmits - transmitsLeft));
             outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
             
             //receive ACK packet from client
@@ -570,6 +573,7 @@ class Server extends CommonMethods implements Runnable
         		sendError(rxPacket);
         	}
         }
+    }
         System.out.println("RRQ Complete: TERMINATING SOCKET");
         socket.close();
     }
