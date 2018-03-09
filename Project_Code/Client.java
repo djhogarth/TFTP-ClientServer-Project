@@ -481,11 +481,12 @@ class Client extends CommonMethods {
 		boolean isValidPkt = true;
 		DatagramPacket txPacket = p;
 		int port = getPort(txPacket);
-
+		
 		Vector<byte[]> tempVector = new Vector<byte[]>();
 
 		while (isValidPkt) {// Loop to receive DATA and send ACK until received DATA<512 bytes
 			// receive and create DATA
+			
 			byte[] receiveData = new byte[DATA_SIZE];
 			rxPacket = new DatagramPacket(receiveData, receiveData.length);
 
@@ -550,7 +551,7 @@ class Client extends CommonMethods {
 				}
 			}
 		}
-
+	
 		return tempVector;
 	}
 
