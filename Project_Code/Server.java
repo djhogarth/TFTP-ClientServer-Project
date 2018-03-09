@@ -428,6 +428,9 @@ class Server extends CommonMethods implements Runnable
         
         
         byte[] sendData = new byte[]{0,4,0,0};//block 0 ACK packet
+
+        boolean gotResponse = false;
+        int dataCounter = 1;
         
         fileSize=fileVector.size();
         if (checkError(packet) != "No Error") {//initial WRQ file error check
@@ -446,7 +449,33 @@ class Server extends CommonMethods implements Runnable
 	            //receive DATA packet from Client
 	            byte[] receiveData = new byte[DATA_SIZE];
 	            DatagramPacket rxPacket = new DatagramPacket(receiveData, receiveData.length);
-	            socket.receive(rxPacket);
+                gotResponse = false;
+
+
+                while (!gotResponse) {// Loop receive from server until either Valid ACK or ERROR is received
+                    socket.setSoTimeout(5000);
+                    try {
+                        socket.receive(rxPacket);
+                        receiveData = rxPacket.getData();
+
+                        System.out.println("TEST = " + receiveData[2] + receiveData[3]);
+
+                        if(receiveData[1]==5 || (receiveData[1] == 3 && receiveData[2] + receiveData[3] == dataCounter)){
+                            gotResponse = true;
+                            dataCounter++;
+                        }
+                    }
+                    catch (SocketTimeoutException ste)
+                    {
+                        System.out.println("\n*** No response received from Client... Re-sending packet. ***\n");
+                        socket.send(txPacket);
+                        outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
+                        socket.setSoTimeout(0); //infinite socket wait time
+                        gotResponse = false;
+                    }
+                }
+
+
 	            rxPacket = resizePacket(rxPacket);
 	            outputText(rxPacket, direction.IN, endhost.ERRORSIM, verboseOutput);
 	

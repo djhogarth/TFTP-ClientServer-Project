@@ -481,38 +481,45 @@ class Client extends CommonMethods {
 		boolean isValidPkt = true;
 		DatagramPacket txPacket = p;
 		int port = getPort(txPacket);
+
+		boolean gotResponse = false;
+		int dataCounter = 1;
 		
 		Vector<byte[]> tempVector = new Vector<byte[]>();
 
 		while (isValidPkt) {// Loop to receive DATA and send ACK until received DATA<512 bytes
 			// receive and create DATA
-			
+
 			byte[] receiveData = new byte[DATA_SIZE];
+			//byte[] sendData = txPacket.getData();
+
 			rxPacket = new DatagramPacket(receiveData, receiveData.length);
-
 			isValidPkt = false;
-			socket.setSoTimeout(10000);
-			try {
-				socket.receive(rxPacket);
-			}
-			catch (SocketTimeoutException ste)
-			{
-				System.out.println("No response received from Server...");
-				System.out.println("Please try again.\n");
-				socket.setSoTimeout(0); //infinite socket wait time
-			}
+			gotResponse = false;
+			//socket.setSoTimeout(10000);
 
-			if (!isValidPkt)
-			{
-				if (rxPacket == new DatagramPacket(receiveData, receiveData.length))
-				{
-					System.out.println("No response received from Server...");
-					System.out.println("Please try again.\n");
-					socket.setSoTimeout(0); //infinite socket wait time
+			while (!gotResponse) {// Loop receive from server until either Valid ACK or ERROR is received
+				socket.setSoTimeout(5000);
+				try {
+					socket.receive(rxPacket);
+					receiveData = rxPacket.getData();
+
+					System.out.println("TEST = " + receiveData[2] + receiveData[3]);
+
+					if(receiveData[1]==5 || (receiveData[1] == 3 && receiveData[2] + receiveData[3] == dataCounter)){
+						gotResponse = true;
+						isValidPkt = true;
+						dataCounter++;
+					}
 				}
-				else
-					isValidPkt = true;
-
+				catch (SocketTimeoutException ste)
+				{
+					System.out.println("\n*** No response received from Server... Re-sending packet. ***\n");
+					socket.send(txPacket);
+					outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
+					socket.setSoTimeout(0); //infinite socket wait time
+					gotResponse = false;
+				}
 			}
 
 			if (isValidPkt) {
