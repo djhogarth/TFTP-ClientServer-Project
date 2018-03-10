@@ -7,6 +7,8 @@
 
 import java.net.*;
 import java.util.Scanner;
+import java.util.Timer;
+import java.util.TimerTask;
 
 class ErrorSim extends CommonMethods
 {
@@ -49,6 +51,8 @@ class ErrorSim extends CommonMethods
         DatagramSocket clientSocket = new DatagramSocket();
         DatagramSocket serverSocket = new DatagramSocket();
         //serverSocket.setSoTimeout(5000);
+
+
 
         int tempPort = 0;
 
@@ -362,16 +366,35 @@ class ErrorSim extends CommonMethods
                     }
                 }
 
+                //Delay Amount
+                inputValid = false;
+                while (!inputValid) {
+                    System.out.print("How long will the packet be delayed (in ms)? ");
+                    input = reader.nextLine();
+                    int tempNum = -1;
+
+                    try {
+                        tempNum = Integer.valueOf(input);
+                        if (tempNum > 0) {
+                            inputValid = true;
+                            delay = tempNum;
+                        }
+                    }
+                    catch (Exception e) {
+                        System.out.println("The input is not valid.");
+                    }
+                }
+
                 if (testOpcode == 1)
-                    System.out.println("RRQ will be duplicated.\n");
+                    System.out.println("RRQ will be re-transmitted after " + delay + " ms.\n");
                 if (testOpcode == 2)
-                    System.out.println("WRQ will be duplicated.\n");
+                    System.out.println("WRQ will be re-transmitted after " + delay + " ms.\n");
                 if (testOpcode == 3)
-                    System.out.println("DATA Packet# " + testBlockNum + " will be duplicated.\n");
+                    System.out.println("DATA Packet# " + testBlockNum + " will be re-transmitted after " + delay + " ms.\n");
                 if (testOpcode == 4)
-                    System.out.println("ACK Packet# " + testBlockNum + " will be duplicated.\n");
+                    System.out.println("ACK Packet# " + testBlockNum + " will be re-transmitted after " + delay + " ms.\n");
                 if (testOpcode == 5)
-                    System.out.println("ERROR will be duplicated.\n");
+                    System.out.println("ERROR will be re-transmitted after " + delay + " ms.\n");
             }
         }
 
@@ -435,7 +458,7 @@ class ErrorSim extends CommonMethods
                 	}
                 }
 
-                //--- Test Mode 2: Delay Packet---//
+                //--- Test Mode 2: Delay Packet ---//
                 if(mode==2 && rxData[1]==testOpcode) {
                     if (rxData[1] == 1) {//If RRQ
                         System.out.println("** Delayed RRQ by " + delay + "ms! **\n");
@@ -463,21 +486,38 @@ class ErrorSim extends CommonMethods
                     }
                 }
 
-
-                    if (mode == 3 && rxData[1] == testOpcode) {//Test Mode 3: Duplicate Packet
-                        if (blockNumToBytes(testBlockNum)[0] == rxData[2] && blockNumToBytes(testBlockNum)[1] == rxData[3]) {//Duplicate packet
-                            dupePack = txPacket;
+                //--- Test Mode 3: Duplicate Packet ---//
+                Timer timer = new Timer();
+                if(mode==3 && rxData[1]==testOpcode) {
+                    if (rxData[1] == 1) {//If RRQ
+                        String msg = ("** Re-transmitted RRQ after " + delay + " ms!\n");
+                        timer.schedule(new resendPacket(txPacket, serverSocket, msg, direction.OUT, endhost.SERVER, verboseOutput), delay);
+                        resetTestVars();
+                    }
+                    else if (rxData[1] == 2) {//If WRQ
+                        String msg = ("** Re-transmitted WRQ after " + delay + " ms!\n");
+                        timer.schedule(new resendPacket(txPacket, serverSocket, msg, direction.OUT, endhost.SERVER, verboseOutput), delay);
+                        resetTestVars();
+                    }
+                    else if(rxData[1]==5) {//if ERROR
+                        String msg = ("** Re-transmitted ERROR after " + delay + " ms!\n");
+                        timer.schedule(new resendPacket(txPacket, serverSocket, msg, direction.OUT, endhost.SERVER, verboseOutput), delay);
+                        resetTestVars();
+                    }
+                    else if(blockNumToBytes(testBlockNum)[0]==rxData[2] && blockNumToBytes(testBlockNum)[1]==rxData[3]) {//Otherwise check the block number
+                        if (rxData[1]==3) {
+                            String msg = ("** Re-transmitted DATA (Block number " + testBlockNum + ") after " + delay + "ms! **\n");
+                            timer.schedule(new resendPacket(txPacket, serverSocket, msg, direction.OUT, endhost.SERVER, verboseOutput), delay);
+                            resetTestVars();
+                        }
+                        if (rxData[1]==4) {
+                            String msg = ("** Re-transmitted ACK (Block number " + testBlockNum + ") after " + delay + "ms! **\n");
+                            timer.schedule(new resendPacket(txPacket, serverSocket, msg, direction.OUT, endhost.SERVER, verboseOutput), delay);
+                            resetTestVars();
                         }
                     }
-                    else if (mode == 3 && rxData[1] == delayOpcode) {//Test Mode 3: Replace packet
-                        if (blockNumToBytes(delayBkNum)[0] == rxData[2] && blockNumToBytes(delayBkNum)[1] == rxData[3]) {//Replace packet with duplicate
-                            Thread.sleep(delay);
-                            txPacket = dupePack;
-                        }
-                    }
+                }
 
-
-                
                 if(rxData[1]==3||rxData[1]==4) {
                     txPacket.setPort(tempPort);
                 }
@@ -534,7 +574,7 @@ class ErrorSim extends CommonMethods
                             }
                         }
 
-                        //--- Test Mode 2: Delay Packet---//
+                        //--- Test Mode 2: Delay Packet ---//
                         if(mode==2 && rxData[1]==testOpcode) {
                             if (rxData[1] == 1) {//If RRQ
                                 System.out.println("** Delayed RRQ by " + delay + "ms! **\n");
@@ -561,32 +601,56 @@ class ErrorSim extends CommonMethods
                                 resetTestVars();
                             }
                         }
+
+                        //--- Test Mode 3: Duplicate Packet ---//
+                        timer = new Timer();
+
+                        //Send to CLIENT
+                        txPacket = rxPacket;
+                        txPacket.setPort(client_port);
+                        txPacket.setAddress(InetAddress.getLocalHost());
+
+                        if(mode==3 && rxData[1]==testOpcode) {
+                            if (rxData[1] == 1) {//If RRQ
+                                String msg = ("** Re-transmitted RRQ after " + delay + " ms!\n");
+                                timer.schedule(new resendPacket(txPacket, clientSocket, msg, direction.OUT, endhost.CLIENT, verboseOutput), delay);
+                                resetTestVars();
+                            }
+                            else if (rxData[1] == 2) {//If WRQ
+                                String msg = ("** Re-transmitted WRQ after " + delay + " ms!\n");
+                                timer.schedule(new resendPacket(txPacket, clientSocket, msg, direction.OUT, endhost.CLIENT, verboseOutput), delay);
+                                resetTestVars();
+                            }
+                            else if(rxData[1]==5) {//if ERROR
+                                String msg = ("** Re-transmitted ERROR after " + delay + " ms!\n");
+                                timer.schedule(new resendPacket(txPacket, clientSocket, msg, direction.OUT, endhost.CLIENT, verboseOutput), delay);
+                                resetTestVars();
+                            }
+                            else if(blockNumToBytes(testBlockNum)[0]==rxData[2] && blockNumToBytes(testBlockNum)[1]==rxData[3]) {//Otherwise check the block number
+                                if (rxData[1]==3) {
+                                    String msg = ("** Re-transmitted DATA (Block number " + testBlockNum + ") after " + delay + "ms! **\n");
+                                    timer.schedule(new resendPacket(txPacket, clientSocket, msg, direction.OUT, endhost.CLIENT, verboseOutput), delay);
+                                    resetTestVars();
+                                }
+                                if (rxData[1]==4) {
+                                    String msg = ("** Re-transmitted ACK (Block number " + testBlockNum + ") after " + delay + "ms! **\n");
+                                    timer.schedule(new resendPacket(txPacket, clientSocket, msg, direction.OUT, endhost.CLIENT, verboseOutput), delay);
+                                    resetTestVars();
+                                }
+                            }
+                        }
+
+
                     }
 
 
+
+
+                    /*
                     //Send to CLIENT
                     txPacket = rxPacket;
                     txPacket.setPort(client_port);
                     txPacket.setAddress(InetAddress.getLocalHost());
-
-/*
-                    if(mode==2 && rxData[1]==testOpcode) {//Test Mode 2: Delay Packet
-                    	if(rxData[1]==1 || rxData[1]==2) {//Checks if packet is RRQ or WRQ
-                    		Thread.sleep(delay);
-                    	}
-                    	else if(blockNumToBytes(testBlockNum)[0]==rxData[2] && blockNumToBytes(testBlockNum)[1]==rxData[3]) {//Otherwise check the block number
-                    		Thread.sleep(delay);
-                    	}
-                    }else if(mode==3 && rxData[1]==testOpcode) {//Test Mode 3: Duplicate Packet
-                    	if(blockNumToBytes(testBlockNum)[0]==rxData[2] && blockNumToBytes(testBlockNum)[1]==rxData[3]) {//Duplicate packet
-                    		dupePack = txPacket;
-                    	}
-                    }else if(mode==3 && rxData[1]==delayOpcode) {//Test Mode 3: Replace packet
-                    	if(blockNumToBytes(delayBkNum)[0]==rxData[2] && blockNumToBytes(delayBkNum)[1]==rxData[3]) {//Replace packet with duplicate
-                    		Thread.sleep(delay);
-                    		txPacket = dupePack;
-                    	}
-                    }
                     */
                     
                     if(!isLost) {//Don't send lost packet
@@ -620,4 +684,37 @@ class ErrorSim extends CommonMethods
         delayOpcode = 0; //DATA,ACK delayed packet opcode to replace
         delayBkNum = 0; //block number to replace
     }
+}
+
+//Used in Test Mode 3: Duplicate Packet
+//Re-sends the packet to the appropriate socket
+class resendPacket extends TimerTask {
+
+    DatagramPacket txPacket;
+    DatagramSocket socket;
+    String msg;
+    CommonMethods.direction dir;
+    CommonMethods.endhost host;
+    boolean verbosOutput;
+
+    resendPacket (DatagramPacket pkt, DatagramSocket socket, String msg, CommonMethods.direction dir, CommonMethods.endhost host, boolean verbose)
+    {
+        this.txPacket = pkt;
+        this.socket = socket;
+        this.msg = msg;
+        this.dir = dir;
+        this.host = host;
+        this.verbosOutput = verbose;
+    }
+
+    public void run()
+    {
+        try {
+            socket.send(txPacket);
+            System.out.println(msg);
+            CommonMethods.outputText(txPacket, dir, host, verbosOutput);
+        }
+        catch (Exception e) {}
+    }
+
 }

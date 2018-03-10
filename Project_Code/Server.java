@@ -176,7 +176,8 @@ class Server extends CommonMethods implements Runnable
         //If the thread is a SENDER, run this code
         if (!isListener)
         {
-            System.out.println("NEW SENDER THREAD!");
+            if (verboseOutput)
+                System.out.println("*** NEW SENDER THREAD! ***");
 
             //All sending logic is in sendReply()
             sendReply(this.packet, this.socket);
