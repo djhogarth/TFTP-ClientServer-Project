@@ -439,21 +439,28 @@ class ErrorSim extends CommonMethods
                 if(mode==2 && rxData[1]==testOpcode) {
                     if (rxData[1] == 1) {//If RRQ
                         System.out.println("** Delayed RRQ by " + delay + "ms! **\n");
+                        Thread.sleep(delay);
+                        resetTestVars();
                     }
                     else if (rxData[1] == 2) {//If WRQ
                         System.out.println("** Delayed WRQ by " + delay + "ms! **\n");
+                        Thread.sleep(delay);
+                        resetTestVars();
                     }
                     else if(rxData[1]==5) {//if ERROR
                         System.out.println("** Delayed ERROR by " + delay + "ms! **\n");
+                        Thread.sleep(delay);
+                        resetTestVars();
                     }
-                    else if(blockNumToBytes(testBlockNum)[0]==rxData[2] && blockNumToBytes(testBlockNum)[1]==rxData[3]) {//Otherwise check the block number
+                    else if(blockNumToBytes(delayBkNum)[0]==rxData[2] && blockNumToBytes(delayBkNum)[1]==rxData[3]) {//Otherwise check the block number
                         if (rxData[1]==3)
-                            System.out.println("** Delayed DATA (Block number " + testBlockNum + ") by " + delay + "ms! **\n");
+                            System.out.println("** Delayed DATA (Block number " + delayBkNum + ") by " + delay + "ms! **\n");
                         if (rxData[1]==4)
-                            System.out.println("** Delayed ACK (Block number " + testBlockNum + ") by " + delay + "ms! **\n");
+                            System.out.println("** Delayed ACK (Block number " + delayBkNum + ") by " + delay + "ms! **\n");
+
+                        Thread.sleep(delay);
+                        resetTestVars();
                     }
-                    Thread.sleep(delay);
-                    resetTestVars();
                 }
 
 
@@ -525,11 +532,35 @@ class ErrorSim extends CommonMethods
                                 }
                                 resetTestVars();
                             }
-                            //else
-                             //   isLost = false; //not really, just set to exit the while loop
                         }
-                        //else
-                        //    isLost = false; //not really, just set to exit the while loop
+
+                        //--- Test Mode 2: Delay Packet---//
+                        if(mode==2 && rxData[1]==testOpcode) {
+                            if (rxData[1] == 1) {//If RRQ
+                                System.out.println("** Delayed RRQ by " + delay + "ms! **\n");
+                                Thread.sleep(delay);
+                                resetTestVars();
+                            }
+                            else if (rxData[1] == 2) {//If WRQ
+                                System.out.println("** Delayed WRQ by " + delay + "ms! **\n");
+                                Thread.sleep(delay);
+                                resetTestVars();
+                            }
+                            else if(rxData[1]==5) {//if ERROR
+                                System.out.println("** Delayed ERROR by " + delay + "ms! **\n");
+                                Thread.sleep(delay);
+                                resetTestVars();
+                            }
+                            else if(blockNumToBytes(delayBkNum)[0]==rxData[2] && blockNumToBytes(delayBkNum)[1]==rxData[3]) {//Otherwise check the block number
+                                if (rxData[1]==3)
+                                    System.out.println("** Delayed DATA (Block number " + delayBkNum + ") by " + delay + "ms! **\n");
+                                if (rxData[1]==4)
+                                    System.out.println("** Delayed ACK (Block number " + delayBkNum + ") by " + delay + "ms! **\n");
+
+                                Thread.sleep(delay);
+                                resetTestVars();
+                            }
+                        }
                     }
 
 
@@ -538,7 +569,7 @@ class ErrorSim extends CommonMethods
                     txPacket.setPort(client_port);
                     txPacket.setAddress(InetAddress.getLocalHost());
 
-
+/*
                     if(mode==2 && rxData[1]==testOpcode) {//Test Mode 2: Delay Packet
                     	if(rxData[1]==1 || rxData[1]==2) {//Checks if packet is RRQ or WRQ
                     		Thread.sleep(delay);
@@ -556,6 +587,7 @@ class ErrorSim extends CommonMethods
                     		txPacket = dupePack;
                     	}
                     }
+                    */
                     
                     if(!isLost) {//Don't send lost packet
                     	clientSocket.send(txPacket);
