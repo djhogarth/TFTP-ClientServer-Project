@@ -504,8 +504,6 @@ class Client extends CommonMethods {
 					socket.receive(rxPacket);
 					receiveData = rxPacket.getData();
 
-					System.out.println("TEST = " + receiveData[2] + receiveData[3]);
-
 					if(receiveData[1]==5 || (receiveData[1] == 3 && receiveData[2] + receiveData[3] == dataCounter)){
 						gotResponse = true;
 						isValidPkt = true;

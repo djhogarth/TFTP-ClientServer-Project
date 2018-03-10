@@ -1,3 +1,4 @@
+import javax.xml.crypto.Data;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -265,5 +266,37 @@ public class CommonMethods {
         }
 
         return false;
+    }
+
+    public static DatagramPacket deepCopy(DatagramPacket pkt)
+    {
+        DatagramPacket copy;
+        byte[] data = pkt.getData();
+        int length = data.length;
+        copy = new DatagramPacket(data, length);
+
+        return copy;
+    }
+
+    public static boolean areTheSame(DatagramPacket pkt1, DatagramPacket pkt2)
+    {
+        boolean answer = true;
+        byte[] data1 = pkt1.getData();
+        int length1 = data1.length;
+        byte[] data2 = pkt2.getData();
+        int length2 = data2.length;
+
+        if (length1 == length2)
+        {
+            for (int i = 0; i < length1; i++)
+            {
+                if (data1[i] != data2[i])
+                    answer = false;
+            }
+        }
+        else
+            answer = false;
+
+        return answer;
     }
 }

@@ -81,6 +81,10 @@ class Server extends CommonMethods implements Runnable
     public synchronized void run()
     {
         byte[] rxData = new byte[DATA_SIZE];
+        DatagramPacket lastPkReceived = new DatagramPacket(rxData, 100);
+        DatagramPacket lastRqReceived = new DatagramPacket(rxData, 100);
+        lastPkReceived.setData(new byte[2]);
+        lastRqReceived.setData(new byte[2]);
 
         //If thread is LISTENER
         while(isListener)
@@ -91,13 +95,27 @@ class Server extends CommonMethods implements Runnable
             //Used to ensure that the server receives a real packet
             while (!receivedPkt) {
                 try {
-                    Thread.sleep(1000);
+                    Thread.sleep(500);
                     socket.receive(rxPacket);
 
-                    if (rxPacket == (new DatagramPacket(rxData, rxData.length)))
+                    //EXPERIMENTAL CODE - NOT YET FINISHED
+                    if (rxPacket == (new DatagramPacket(rxData, rxData.length)) && areTheSame(rxPacket, lastRqReceived)) { // || rxPacket.getData() == lastPkReceived.getData() || lastRqReceived.getData() == rxPacket.getData()) {
                         receivedPkt = false;
-                    else
+                        System.out.println("They were the same!!!");
+                    }
+                    else {
                         receivedPkt = true;
+                        lastPkReceived = deepCopy(rxPacket);
+
+                        //EXPERIMENTAL CODE - NOT YET FINISHED
+                        //If the last received packet is a REQUEST, we "copy" the data from rxPacket to lastRqReceived
+                        //This is the only way I could "deep copy" a Datagram Packet
+                        if (rxPacket.getData()[1] == 1 || rxPacket.getData()[1] == 2) {
+                            //lastRqReceived.setData(rxPacket.getData());
+                            lastRqReceived = deepCopy(rxPacket);
+                        }
+
+                    }
 
                 } catch (Exception e) {
                 	System.out.println("Server has timed out: terminating...");
@@ -119,9 +137,12 @@ class Server extends CommonMethods implements Runnable
 
             //Ensures inbound packets are formatted correctly
             //Once validated, creates a new SENDER thread and runs it
-            if (validatePacket(rxPacket) && !isOOB(rxPacket)) {
+            if (validatePacket(rxPacket) && !isOOB(rxPacket)) { // && lastRqReceived.getData() != rxPacket.getData()) {
 
                 try {
+                    //lastPkReceived = new DatagramPacket(rxData, 100);
+                    //lastRqReceived = new DatagramPacket(rxData, 100);
+
                     Thread sendReply = new Thread(new Server(rxPacket, verboseOutput), "SENDER");
                     sendReply.start();
                 }
@@ -146,6 +167,8 @@ class Server extends CommonMethods implements Runnable
                 //throw new ValidationException("Packet is not valid.");
             }
 
+
+
             if (quitSignal)
                 System.exit(1);
         }
@@ -153,6 +176,8 @@ class Server extends CommonMethods implements Runnable
         //If the thread is a SENDER, run this code
         if (!isListener)
         {
+            System.out.println("NEW SENDER THREAD!");
+
             //All sending logic is in sendReply()
             sendReply(this.packet, this.socket);
 
@@ -163,7 +188,7 @@ class Server extends CommonMethods implements Runnable
             BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
             String line = "";
 
-            System.out.print("Would you like to (q)uit? ");
+            System.out.println("Would you like to (q)uit? ");
             while (line.equalsIgnoreCase("q") == false) {
                 try { line = in.readLine(); }
                 catch (Exception e) {}
@@ -294,12 +319,12 @@ class Server extends CommonMethods implements Runnable
                 //System.out.println("File Exists!");
             	if (f.canRead()==false) {
 	            	errorMessage = msg[2];
-	            	System.out.println(msg[2]);   //access violation.
+	            	//System.out.println(msg[2]);   //access violation.
 	            }  
             }         
             else
             {
-                System.out.println(msg[1]); //File not found.
+                //System.out.println(msg[1]); //File not found.
                 errorMessage = msg[1];
             }
         }
@@ -311,18 +336,18 @@ class Server extends CommonMethods implements Runnable
         {
         	f = new File("./ServerFiles/" + getFilename(packet));
             if(f.exists() && !f.isDirectory()) {
-            	System.out.println(msg[6]); //File already exists.
+            	//System.out.println(msg[6]); //File already exists.
                 errorMessage = msg[6];              
             }        	    
             
             f = new File("./ServerFiles/");
             if (!f.canWrite()) {
             	errorMessage = msg[2];  
-            	System.out.println(msg[2]);   //access violation.
+            	//System.out.println(msg[2]);   //access violation.
             }
             
 		    if(diskSpace==0) {
-		    	System.out.println(msg[3]); //Disk full or allocation exceeded
+		    	//System.out.println(msg[3]); //Disk full or allocation exceeded
 		    	errorMessage = msg[3];
 		    }
         }
@@ -332,7 +357,7 @@ class Server extends CommonMethods implements Runnable
         {
         	
 		    if(diskSpace==0 || diskSpace < fileSize) {//size of file being written
-		    	System.out.println(msg[3]); //Disk full or allocation exceeded
+		    	//System.out.println(msg[3]); //Disk full or allocation exceeded
 		    	errorMessage = msg[3];
 		    }
         }
@@ -431,6 +456,7 @@ class Server extends CommonMethods implements Runnable
 
         boolean gotResponse = false;
         int dataCounter = 1;
+        int numResentPkt = 0;
         
         fileSize=fileVector.size();
         if (checkError(packet) != "No Error") {//initial WRQ file error check
@@ -458,7 +484,7 @@ class Server extends CommonMethods implements Runnable
                         socket.receive(rxPacket);
                         receiveData = rxPacket.getData();
 
-                        System.out.println("TEST = " + receiveData[2] + receiveData[3]);
+                        //System.out.println("TEST = " + receiveData[2] + receiveData[3]);
 
                         if(receiveData[1]==5 || (receiveData[1] == 3 && receiveData[2] + receiveData[3] == dataCounter)){
                             gotResponse = true;
@@ -467,6 +493,12 @@ class Server extends CommonMethods implements Runnable
                     }
                     catch (SocketTimeoutException ste)
                     {
+                        if (numResentPkt >= 3) {
+                            System.out.println("\n*** No response from Server after three attempts. ***\n");
+                            break;
+                        }
+
+                        numResentPkt++;
                         System.out.println("\n*** No response received from Client... Re-sending packet. ***\n");
                         socket.send(txPacket);
                         outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
@@ -531,6 +563,7 @@ class Server extends CommonMethods implements Runnable
         int totalBlocksRequired = (file.length / 512) + 1;
         int remainderLastBlock = (file.length % 512);
         boolean onLastBlock = false;
+        int numResentPkt = 0;
 
         int j=0;
 
@@ -588,6 +621,13 @@ class Server extends CommonMethods implements Runnable
                         gotResponse = true;
                     }
                 } catch (SocketTimeoutException ste) {
+
+                    if (numResentPkt >= 3) {
+                        System.out.println("\n*** No response from Server after three attempts. ***\n");
+                        break;
+                    }
+
+                    numResentPkt++;
                     System.out.println("\n*** No response received from Client... Re-sending packet. ***\n");
                     socket.send(txPacket);
                     outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
@@ -597,11 +637,13 @@ class Server extends CommonMethods implements Runnable
                 }
             }
 
-            rxPacket = resizePacket(rxPacket);
-            outputText(rxPacket, direction.IN, endhost.ERRORSIM, verboseOutput);
-            if (checkError(rxPacket) != "No Error") {
-        		sendError(rxPacket);
-        	}
+            if (gotResponse) {
+                rxPacket = resizePacket(rxPacket);
+                outputText(rxPacket, direction.IN, endhost.ERRORSIM, verboseOutput);
+                if (checkError(rxPacket) != "No Error") {
+                    sendError(rxPacket);
+                }
+            }
         }
    // }
         System.out.println("RRQ Complete: TERMINATING SOCKET");

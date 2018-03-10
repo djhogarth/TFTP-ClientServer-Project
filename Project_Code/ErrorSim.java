@@ -435,23 +435,41 @@ class ErrorSim extends CommonMethods
                 	}
                 }
 
-                if(mode==2 && rxData[1]==testOpcode) {//Test Mode 2: Delay Packet
-                	if(rxData[1]==1 || rxData[1]==2) {//Checks if packet is RRQ or WRQ
-                		Thread.sleep(delay);
-                	}
-                	else if(blockNumToBytes(testBlockNum)[0]==rxData[2] && blockNumToBytes(testBlockNum)[1]==rxData[3]) {//Otherwise check the block number
-                		Thread.sleep(delay);
-                	}
-                }else if(mode==3 && rxData[1]==testOpcode) {//Test Mode 3: Duplicate Packet
-                	if(blockNumToBytes(testBlockNum)[0]==rxData[2] && blockNumToBytes(testBlockNum)[1]==rxData[3]) {//Duplicate packet
-                		dupePack = txPacket;
-                	}
-                }else if(mode==3 && rxData[1]==delayOpcode) {//Test Mode 3: Replace packet
-                	if(blockNumToBytes(delayBkNum)[0]==rxData[2] && blockNumToBytes(delayBkNum)[1]==rxData[3]) {//Replace packet with duplicate
-                		Thread.sleep(delay);
-                		txPacket = dupePack;
-                	}
+                //--- Test Mode 2: Delay Packet---//
+                if(mode==2 && rxData[1]==testOpcode) {
+                    if (rxData[1] == 1) {//If RRQ
+                        System.out.println("** Delayed RRQ by " + delay + "ms! **\n");
+                    }
+                    else if (rxData[1] == 2) {//If WRQ
+                        System.out.println("** Delayed WRQ by " + delay + "ms! **\n");
+                    }
+                    else if(rxData[1]==5) {//if ERROR
+                        System.out.println("** Delayed ERROR by " + delay + "ms! **\n");
+                    }
+                    else if(blockNumToBytes(testBlockNum)[0]==rxData[2] && blockNumToBytes(testBlockNum)[1]==rxData[3]) {//Otherwise check the block number
+                        if (rxData[1]==3)
+                            System.out.println("** Delayed DATA (Block number " + testBlockNum + ") by " + delay + "ms! **\n");
+                        if (rxData[1]==4)
+                            System.out.println("** Delayed ACK (Block number " + testBlockNum + ") by " + delay + "ms! **\n");
+                    }
+                    Thread.sleep(delay);
+                    resetTestVars();
                 }
+
+
+                    if (mode == 3 && rxData[1] == testOpcode) {//Test Mode 3: Duplicate Packet
+                        if (blockNumToBytes(testBlockNum)[0] == rxData[2] && blockNumToBytes(testBlockNum)[1] == rxData[3]) {//Duplicate packet
+                            dupePack = txPacket;
+                        }
+                    }
+                    else if (mode == 3 && rxData[1] == delayOpcode) {//Test Mode 3: Replace packet
+                        if (blockNumToBytes(delayBkNum)[0] == rxData[2] && blockNumToBytes(delayBkNum)[1] == rxData[3]) {//Replace packet with duplicate
+                            Thread.sleep(delay);
+                            txPacket = dupePack;
+                        }
+                    }
+
+
                 
                 if(rxData[1]==3||rxData[1]==4) {
                     txPacket.setPort(tempPort);
