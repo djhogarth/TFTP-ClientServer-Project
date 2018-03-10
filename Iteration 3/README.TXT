@@ -6,9 +6,10 @@
   DETAILS - Each .java file has its own documentation.
 
   Source files
-  Client.java - Client program
-  ErrorSim.java - Intermediate Host/Error Simulator program
-  Server.java - Server program
+  Client.java        - Client program
+  ErrorSim.java      - Intermediate Host/Error Simulator program
+  Server.java        - Server program
+  CommonMethods.java - Contains commonMethods used by Client, ErrorSim and Server 
 
   This README is for the Iteration 3 submission for the final project.
   Code runs according to the requirements. All files run separately.
