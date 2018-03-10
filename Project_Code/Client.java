@@ -512,13 +512,14 @@ class Client extends CommonMethods {
 			isValidPkt = false;
 			gotResponse = false;
 
-			while (!gotResponse) {// Loop receive from server until either Valid ACK or ERROR is received
+			while (!gotResponse) {// Loop receive from server until either Valid DATA or ERROR is received
 				socket.setSoTimeout(5000);
 				try {
 					socket.receive(rxPacket);
 					receiveData = rxPacket.getData();
 
-					if(receiveData[1]==5 || (receiveData[1] == 3 && receiveData[2] + receiveData[3] == dataCounter)){
+					//if(receiveData[1]==5 || (receiveData[1] == 3 && receiveData[2] + receiveData[3] == dataCounter)){
+					if(receiveData[1]==5 || (receiveData[1] == 3 && (receiveData[2] == blockNumToBytes(dataCounter)[0] && receiveData[3] == blockNumToBytes(dataCounter)[1]) ) ){
 						gotResponse = true;
 						isValidPkt = true;
 						dataCounter++;
@@ -526,10 +527,10 @@ class Client extends CommonMethods {
 				}
 				catch (SocketTimeoutException ste)
 				{
-					if (txPacket.getData()[1] == 1 || txPacket.getData()[1] == 2) {
+					/*if (txPacket.getData()[1] == 1 || txPacket.getData()[1] == 2) {
 						System.out.println("\n*** No response received from Server... Please try again. ***\n");
 						break;
-					}
+					}*/
 
 					System.out.println("\n*** No response received from Server... Re-sending packet. ***\n");
 					socket.send(txPacket);
@@ -628,7 +629,7 @@ class Client extends CommonMethods {
 			}
 
 			if (gotResponse) {
-				System.out.println("port = " + getPort(rxPacket));
+				//System.out.println("port = " + getPort(rxPacket));
 				rxPacket = resizePacket(rxPacket);
 				outputText(rxPacket, direction.IN, endhost.ERRORSIM, verboseOutput);
 

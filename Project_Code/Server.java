@@ -457,7 +457,7 @@ class Server extends CommonMethods implements Runnable
 
         System.out.println("ERROR Complete: TERMINATING SOCKET");
         socket.close();
-        System.exit(0);//shutdown after error
+        //System.exit(0);//shutdown after error
     }
 
     /*
@@ -482,6 +482,7 @@ class Server extends CommonMethods implements Runnable
         fileSize=fileVector.size();
         if (checkError(packet) != "No Error") {//initial WRQ file error check
         	sendError(packet);
+        	return;
         }
 
         while(true) {//Loop to send ACK and receive DATA until DATA<512 bytes
@@ -513,7 +514,7 @@ class Server extends CommonMethods implements Runnable
                     catch (SocketTimeoutException ste)
                     {
                         if (numResentPkt >= 3) {
-                            System.out.println("\n*** No response from Server after three attempts. ***\n");
+                            System.out.println("\n*** No response from Client after three attempts. ***\n");
                             break;
                         }
 
@@ -547,6 +548,7 @@ class Server extends CommonMethods implements Runnable
 	            fileSize=fileVector.size();
 	            if (checkError(rxPacket) != "No Error") {//check received data
 	            	sendError(rxPacket);
+	            	return;
 	            }
             }
             else break;
@@ -629,8 +631,8 @@ class Server extends CommonMethods implements Runnable
                 } catch (SocketTimeoutException ste) {
 
                     if (numResentPkt >= 3) {
-                        System.out.println("\n*** No response from Server after three attempts. ***\n");
-                        break;
+                        System.out.println("\n*** No response from Client after three attempts. ***\n");
+                        return;
                     }
 
                     numResentPkt++;

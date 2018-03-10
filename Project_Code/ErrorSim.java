@@ -546,9 +546,10 @@ class ErrorSim extends CommonMethods
                         //--- Test Mode 1: Lost Packet ---//
                         if (mode == 1 && rxData[1] == testOpcode) {
                             if (rxData[1] == 5) {//if packet is ERROR
-                                needPkt = true;
+                                needPkt = false;//Server request thread terminates after sending error
                                 System.out.println("** Dropped an ERROR! **\n");
-                                resetTestVars();
+                                isLost = true;
+                                //resetTestVars();
                             } else if (blockNumToBytes(testBlockNum)[0] == rxData[2] && blockNumToBytes(testBlockNum)[1] == rxData[3]) {//Otherwise check the block number
                                 needPkt = true;
                                 if (rxData[1] == 3) {
@@ -633,7 +634,9 @@ class ErrorSim extends CommonMethods
                     if(!isLost) {//Don't send lost packet
                     	clientSocket.send(txPacket);
                     	outputText(txPacket, direction.OUT, endhost.CLIENT, verboseOutput);
-                    }
+                    } else {
+                    	resetTestVars();
+                    }              	
                 }
                 else
                 {
