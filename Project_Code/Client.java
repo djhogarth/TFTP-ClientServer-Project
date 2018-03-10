@@ -18,23 +18,16 @@ import java.util.Vector;
 
 class Client extends CommonMethods {
 
-	DatagramPacket txPacket, rxPacket; // Two datagrams for tx/rx
-	DatagramSocket socket; // Only need one socket since we never tx/rx simultaneously
-
 	// private static final int ERRORSIM_PORT = 23;
 	private static final int ERRORSIM_PORT = 9923;
 	private static final int DATA_SIZE = 516;
-
 	public InetAddress clientIP, errorSimIP, serverIP;
 	public String pathname, filename, operation, quit;
 	public Vector<byte[]> receivedFile;
 	public int fileSize;//size of received file vector or temp vector
-	private boolean verboseOutput = true; // Quiet output when false
-
-	// Used to determine if a packet is inbound or outbound when displaying its text
-	// public enum direction {
-	// IN, OUT;
-	// }
+	DatagramPacket txPacket, rxPacket; // Two datagrams for tx/rx
+	DatagramSocket socket; // Only need one socket since we never tx/rx simultaneously
+	private boolean verboseOutput = false; // Quiet output when false
 
 	public Client() {
 
@@ -49,7 +42,6 @@ class Client extends CommonMethods {
 
 		try {
 			socket = new DatagramSocket();
-			// socket.setSoTimeout(5000); // socket
 		} catch (SocketException se) {
 			se.printStackTrace();
 			System.exit(1);
@@ -259,7 +251,6 @@ class Client extends CommonMethods {
 					System.out.print("Is it a (r)ead or (w)rite?: ");
 					input = reader.nextLine();
 					c.operation = input;
-					//Boolean filePathValid = false;
 					
 					if ((c.operation).equals("write") || (c.operation).equals("w")) {
 						c.txPacket = newDatagram(c.errorSimIP, OPCodes.WRITE, c.filename);
@@ -303,127 +294,11 @@ class Client extends CommonMethods {
 							System.out.println(errorMessage);
 						}
 					}
-
-					// startTransfer = true;
 				}
-
 			}
 		}
 	}
 	
-	//Function takes a packet and returns a corresponding error message
-	public synchronized String checkError(DatagramPacket packet) {
-		String errorMessage = "No Error";
-		String[] msg = new String[8];
-		msg[0] = "Not defined, see error message (if any).";
-		msg[1] = "File not found."; // -- Iteration 2	   -Done in user input WRQ
-		msg[2] = "Access violation."; // -- Iteration 2
-		msg[3] = "Disk full or allocation exceeded."; // -- Iteration 2
-		msg[4] = "Illegal TFTP operation.";
-		msg[5] = "Unknown transfer ID.";
-		msg[6] = "File already exists."; // -- Iteration 2 -Done in user input RRQ
-		msg[7] = "No such user.";
-
-		byte[] data = packet.getData();
-
-		File path = new File(pathname);
-		//path = new File("e:/");//used for testing error 3 - path of full drive
-		long diskSpace = path.getUsableSpace();// returns free space on path in bytes
-		File f;
-		f = new File(pathname + getFilename(packet));
-		
-		// Can do error 3 (Disk full or allocation exceeded.)
-		// Can do error 6 (file already exists)
-		if (data[0] == 0 && data[1] == 1) {//RRQ
-			if (diskSpace == 0) {
-				errorMessage = msg[3];
-			}
-			if (f.exists() && !f.isDirectory()) {
-				errorMessage = msg[6];
-			}			
-		}
-
-		// Can do error 1 (file not found)
-		// Can do error 2 (access violation)
-		if (data[0] == 0 && data[1] == 2) {//WRQ
-			if (f.exists() && !f.isDirectory()) {
-				if (!f.isAbsolute()) {
-	            	errorMessage = msg[2];
-	            	System.out.println(msg[2]);   //access violation.
-	            } 
-			} else {
-				errorMessage = msg[1];
-			}
-			
-		}
-
-		// Can do error 2 (access violation)
-		// Can do error 3 (Disk full or allocation exceeded.)
-		if (data[0] == 0 && data[1] == 3) {//DATA
-			if (diskSpace == 0 || diskSpace < fileSize) {// size of received file
-				errorMessage = msg[3];
-			}
-		}
-
-		// If we receive an Error Packet
-		if (data[0] == 0 && data[1] == 5) {
-			String ascii = new String(data, Charset.forName("UTF-8"));
-			ascii = ascii.substring(4, ascii.length() - 1);
-			
-			for (int i = 0; i < msg.length; i++) {
-				if (ascii.equals(msg[i]))
-					errorMessage = ascii;
-			}
-		}
-
-		return errorMessage;
-
-	}
-	
-	//Takes a packet with a file error and sends an ERROR packet back
-	public void sendError(DatagramPacket packet) {
-		String error = checkError(packet);
-
-		byte[] sendData = new byte[DATA_SIZE];
-		sendData[0] = 0;
-		sendData[1] = 5;
-		sendData[2] = 0;
-		sendData[3] = errorMap.get(error).byteValue(); // Map the error code to the corresponding number
-
-		// Error Code
-		byte[] temp = error.getBytes();
-		int j = 4; // byte placeholder for header
-
-		for (int i = 0; i < error.getBytes().length; i++) {
-			sendData[j++] = temp[i];
-		}
-
-		// Add 0x0
-		sendData[j++] = 0;
-
-		// Resizing packet here for now
-		byte[] sendSmallData = new byte[j];
-		for (int i = 0; i < j; i++) {
-			sendSmallData[i] = sendData[i];
-		}
-
-		// send DATA packet to client
-		txPacket = new DatagramPacket(sendSmallData, sendSmallData.length, packet.getAddress(), getPort(packet));
-		txPacket = resizePacket(txPacket);
-		
-		try {
-			socket.send(txPacket);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		
-		outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
-
-		System.out.println("ERROR Complete: TERMINATING SOCKET");
-		socket.close();
-		System.exit(0);// shutdown after error
-	}
-
 	// A function that takes a vector of any size and writes its bytes to a file
 	public static void saveFile(Vector<byte[]> receivedFile, String filename, Client c) {
 		byte[] tempArray;
@@ -454,7 +329,7 @@ class Client extends CommonMethods {
 			e.printStackTrace();
 		}
 	}
-
+	
 	// A function to create a new Datagram
 	// Future updates to this code will implement the ability to create other types
 	// of TFTP packets
@@ -464,10 +339,150 @@ class Client extends CommonMethods {
 		return newPacket;
 	}
 
+	// Function for sending management packets out of band
+	// These packets will not be displayed in the output for any of the programs
+	// Used to synchronize parameters between all three programs
+	// Verbose/Quiet output, according to requirements, must be the same across all
+	// running apps
+	public static void sendOOB(boolean verbose) throws Exception {
+		// HEADER ==> OPCODE = 0x99 | BOOLEAN VERBOSE
+		byte[] header = new byte[3];
+
+		// OPCODE
+		header[0] = 9;
+		header[1] = 9;
+
+		if (verbose)
+			header[2] = 1; // verbose is toggled
+		else
+			header[2] = 0; // quiet is toggled
+
+		DatagramPacket OOBPacket = new DatagramPacket(header, header.length, InetAddress.getLocalHost(), ERRORSIM_PORT);
+		DatagramSocket OOBSocket = new DatagramSocket();
+		OOBSocket.send(OOBPacket);
+		OOBSocket.close();
+	}
+
+	//Function takes a packet and returns a corresponding error message
+	public synchronized String checkError(DatagramPacket packet) {
+		String errorMessage = "No Error";
+		String[] msg = new String[8];
+		msg[0] = "Not defined, see error message (if any).";
+		msg[1] = "File not found."; // -- Iteration 2	   -Done in user input WRQ
+		msg[2] = "Access violation."; // -- Iteration 2
+		msg[3] = "Disk full or allocation exceeded."; // -- Iteration 2
+		msg[4] = "Illegal TFTP operation.";
+		msg[5] = "Unknown transfer ID.";
+		msg[6] = "File already exists."; // -- Iteration 2 -Done in user input RRQ
+		msg[7] = "No such user.";
+
+		byte[] data = packet.getData();
+
+		File path = new File(pathname);
+		long diskSpace = path.getUsableSpace();// returns free space on path in bytes
+		File f;
+		f = new File(pathname + getFilename(packet));
+
+		// Can do error 3 (Disk full or allocation exceeded.)
+		// Can do error 6 (file already exists)
+		if (data[0] == 0 && data[1] == 1) {//RRQ
+			if (diskSpace == 0) {
+				errorMessage = msg[3];
+			}
+			if (f.exists() && !f.isDirectory()) {
+				errorMessage = msg[6];
+			}
+		}
+
+		// Can do error 1 (file not found)
+		// Can do error 2 (access violation)
+		if (data[0] == 0 && data[1] == 2) {//WRQ
+			if (f.exists() && !f.isDirectory()) {
+				if (!f.isAbsolute()) {
+	            	errorMessage = msg[2];
+	            	System.out.println(msg[2]);   //access violation.
+	            }
+			} else {
+				errorMessage = msg[1];
+			}
+
+		}
+
+		// Can do error 2 (access violation)
+		// Can do error 3 (Disk full or allocation exceeded.)
+		if (data[0] == 0 && data[1] == 3) {//DATA
+			if (diskSpace == 0 || diskSpace < fileSize) {// size of received file
+				errorMessage = msg[3];
+			}
+		}
+
+		// If we receive an Error Packet
+		if (data[0] == 0 && data[1] == 5) {
+			String ascii = new String(data, Charset.forName("UTF-8"));
+			ascii = ascii.substring(4, ascii.length() - 1);
+
+			for (int i = 0; i < msg.length; i++) {
+				if (ascii.equals(msg[i]))
+					errorMessage = ascii;
+			}
+		}
+		return errorMessage;
+	}
+
 	/*
 	 * RRQ FLOW Client -> RRQ -> Server Server -> DATA BLK 1 -> Client Client -> ACK
 	 * BLK 1 -> Server Repeats until Server sends last DATA pkt, Client sends a
 	 * final ACK
+	 */
+
+	//Takes a packet with a file error and sends an ERROR packet back
+	public void sendError(DatagramPacket packet) {
+		String error = checkError(packet);
+
+		byte[] sendData = new byte[DATA_SIZE];
+		sendData[0] = 0;
+		sendData[1] = 5;
+		sendData[2] = 0;
+		sendData[3] = errorMap.get(error).byteValue(); // Map the error code to the corresponding number
+
+		// Error Code
+		byte[] temp = error.getBytes();
+		int j = 4; // byte placeholder for header
+
+		for (int i = 0; i < error.getBytes().length; i++) {
+			sendData[j++] = temp[i];
+		}
+
+		// Add 0x0
+		sendData[j++] = 0;
+
+		// Resizing packet here for now
+		byte[] sendSmallData = new byte[j];
+		for (int i = 0; i < j; i++) {
+			sendSmallData[i] = sendData[i];
+		}
+
+		// send DATA packet to client
+		txPacket = new DatagramPacket(sendSmallData, sendSmallData.length, packet.getAddress(), getPort(packet));
+		txPacket = resizePacket(txPacket);
+
+		try {
+			socket.send(txPacket);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
+
+		System.out.println("ERROR Complete: TERMINATING SOCKET");
+		socket.close();
+		System.exit(0);// shutdown after error
+	}
+
+	/*
+	 * WRQ FLOW Client -> WRQ -> Server Server -> ACK BLK 0 -> Client Client -> DATA
+	 * BLK 1 -> Server Server -> ACK BLK 1 -> Client Repeats until Client sends last
+	 * DATA pkt, Server sends a final ACK
 	 */
 
 	// A function that implements the RRQ of TFTP client, takes as input the port
@@ -484,7 +499,7 @@ class Client extends CommonMethods {
 
 		boolean gotResponse = false;
 		int dataCounter = 1;
-		
+
 		Vector<byte[]> tempVector = new Vector<byte[]>();
 
 		while (isValidPkt) {// Loop to receive DATA and send ACK until received DATA<512 bytes
@@ -496,7 +511,6 @@ class Client extends CommonMethods {
 			rxPacket = new DatagramPacket(receiveData, receiveData.length);
 			isValidPkt = false;
 			gotResponse = false;
-			//socket.setSoTimeout(10000);
 
 			while (!gotResponse) {// Loop receive from server until either Valid ACK or ERROR is received
 				socket.setSoTimeout(5000);
@@ -561,22 +575,14 @@ class Client extends CommonMethods {
 				}
 			}
 		}
-	
+
 		return tempVector;
 	}
-
-	/*
-	 * WRQ FLOW Client -> WRQ -> Server Server -> ACK BLK 0 -> Client Client -> DATA
-	 * BLK 1 -> Server Server -> ACK BLK 1 -> Client Repeats until Client sends last
-	 * DATA pkt, Server sends a final ACK
-	 */
 
 	// A function that implements the WRQ of TFTP client, takes as input the port
 	// that the server uses for handling requests and name of the requested file
 	public synchronized void writeRequest(DatagramPacket txPacket, String filename) throws IOException {
 		int blockNum = 1;
-		//int numTransmits = 3; //Number of re-transmits
-		//int transmitsLeft = numTransmits;
 
 		int port = getPort(txPacket);
 		Path path = Paths.get(pathname + filename);
@@ -588,11 +594,9 @@ class Client extends CommonMethods {
 		byte[] sendData = new byte[] {0,0,0,0};
 		boolean gotResponse = false; //flag to determine if a response was received from the Server
 		int numResentPkt = 0;
-		//boolean tooManyRetries = false;
 
 		while (true) {// Loop to receive ACK and send DATA until sent DATA<512 bytes
 			// create and receive ACK
-			//while (numTransmits-- > 0) {
 			byte[] receiveData = new byte[DATA_SIZE];
 			rxPacket = new DatagramPacket(receiveData, receiveData.length);
 
@@ -673,33 +677,6 @@ class Client extends CommonMethods {
 			{
 				break;
 			}
-			//System.out.println("Send attempt " + (numTransmits - transmitsLeft));
 		}
-	}
-//}
-
-	// Function for sending management packets out of band
-	// These packets will not be displayed in the output for any of the programs
-	// Used to synchronize parameters between all three programs
-	// Verbose/Quiet output, according to requirements, must be the same across all
-	// running apps
-	public static void sendOOB(boolean verbose) throws Exception {
-		// HEADER ==> OPCODE = 0x99 | BOOLEAN VERBOSE
-		byte[] header = new byte[3];
-
-		// OPCODE
-		header[0] = 9;
-		header[1] = 9;
-
-		if (verbose)
-			header[2] = 1; // verbose is toggled
-		else
-			header[2] = 0; // quiet is toggled
-
-		DatagramPacket OOBPacket = new DatagramPacket(header, header.length, InetAddress.getLocalHost(), ERRORSIM_PORT);
-		DatagramSocket OOBSocket = new DatagramSocket();
-		OOBSocket.send(OOBPacket);
-		OOBSocket.close();
-
 	}
 }

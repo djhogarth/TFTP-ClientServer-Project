@@ -9,10 +9,9 @@ import java.util.Map;
 
 public class CommonMethods {
 
-    private static String tempFilename;
-    
-    
     public static final Map<String, Integer> errorMap;
+    private static String tempFilename;
+
     static
     {
     	errorMap = new HashMap<String, Integer>();
@@ -26,25 +25,6 @@ public class CommonMethods {
     	errorMap.put("No such user.", 7);
     }
     
-    public enum direction {
-        IN, OUT;
-    }
-
-    //Used to determine which host sent a packet to whom
-    public enum endhost
-    {
-        CLIENT, ERRORSIM, SERVER;
-    }
-
-    //TFTP OPCODES
-    public enum OPCodes {
-        READ,   //0x01
-        WRITE,  //0x02
-        DATA,   //0x03
-        ACK,    //0x04
-        ERROR   //0x05
-    }
-
     //Returns the a packet's port number
     public static int getPort(DatagramPacket p)
     {
@@ -148,26 +128,14 @@ public class CommonMethods {
             }
 
             if (data[0] == 0 && data[1] == 5)
-            {	
+            {
             	String errorMessage = new String(data, Charset.forName("UTF-8"));
                 errorMessage = errorMessage.substring(4, errorMessage.length());
             	System.out.println("ERROR CODE \t\t= " + data[3] + " = " + errorMessage);
             }
 
-
             /*
             ---- DEPRECATED CODE ----
-
-            //MESSAGE OUTPUT
-            String ascii = new String(data, Charset.forName("UTF-8"));
-            ascii = ascii.substring(4, ascii.length());
-            if (ascii.length() > 0) {
-                System.out.println("MSG LENGTH = " + ascii.length());
-                System.out.println("MESSAGE = ");
-                System.out.println(ascii);
-            } else
-                System.out.println("MESSAGE = NULL");
-
             //BYTE OUTPUT
             //Confirm output with - https://www.branah.com/ascii-converter
             System.out.println("BYTES = ");
@@ -239,6 +207,7 @@ public class CommonMethods {
             return false;
     }
 
+    //Returns the filename that can be found in an arbitrary DatagramPacket
     public static String getFilename(DatagramPacket packet)
     {
         byte[] data = packet.getData();
@@ -253,6 +222,7 @@ public class CommonMethods {
         return filename;
     }
 
+    //Returns true if the DatagramPacket is considered "Out of Band"
     public static boolean isOOB(DatagramPacket pkt)
     {
         byte[] data = pkt.getData();
@@ -268,6 +238,7 @@ public class CommonMethods {
         return false;
     }
 
+    //When called, a DatagramPacket will be duplicated to a different variable name
     public static DatagramPacket deepCopy(DatagramPacket pkt)
     {
         DatagramPacket copy;
@@ -278,6 +249,9 @@ public class CommonMethods {
         return copy;
     }
 
+    //Compares two DatagramPackets
+    //Returns true if both are identical
+    //Returns false if they're different
     public static boolean areTheSame(DatagramPacket pkt1, DatagramPacket pkt2)
     {
         boolean answer = true;
@@ -298,5 +272,24 @@ public class CommonMethods {
             answer = false;
 
         return answer;
+    }
+
+    public enum direction {
+        IN, OUT;
+    }
+
+    //Used to determine which host sent a packet to whom
+    public enum endhost
+    {
+        CLIENT, ERRORSIM, SERVER;
+    }
+
+    //TFTP OPCODES
+    public enum OPCodes {
+        READ,   //0x01
+        WRITE,  //0x02
+        DATA,   //0x03
+        ACK,    //0x04
+        ERROR   //0x05
     }
 }

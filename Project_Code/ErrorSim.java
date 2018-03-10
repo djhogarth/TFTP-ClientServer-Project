@@ -28,11 +28,6 @@ class ErrorSim extends CommonMethods
     static byte delayOpcode = 0; //DATA,ACK delayed packet opcode to replace
     static int delayBkNum = 0; //block number to replace
 
-    //Used to determine if a packet is inbound or outbound when displaying its text
-    //public enum direction
-    //{
-    //    IN, OUT;
-    //}
 
     //Waits to receive packet from Client.java
     //Upon receipt, forwards it to Server.java
@@ -42,7 +37,7 @@ class ErrorSim extends CommonMethods
     {
         boolean inputValid = false;
         String input = "";
-        boolean verboseOutput = true;
+        boolean verboseOutput = false;
         boolean showMenu = true;
         boolean testMode = false;
         Scanner reader = new Scanner(System.in); // Reading from System.in
@@ -50,15 +45,11 @@ class ErrorSim extends CommonMethods
         System.out.println("TFTP ErrorSim is running.\n");
         DatagramSocket clientSocket = new DatagramSocket();
         DatagramSocket serverSocket = new DatagramSocket();
-        //serverSocket.setSoTimeout(5000);
-
-
 
         int tempPort = 0;
 
         try {
             clientSocket = new DatagramSocket(CLIENT_PORT);
-            //clientSocket.setSoTimeout(5000);
             serverSocket = new DatagramSocket();
         } catch (SocketException se) {
             se.printStackTrace();
@@ -201,8 +192,6 @@ class ErrorSim extends CommonMethods
                     if (testOpcode == 4)
                         System.out.println("ACK Packet# " + testBlockNum + " will be dropped.\n");
 
-
-                    System.out.println("Block nums to bytes = " + blockNumToBytes(testBlockNum)[0] + " " + blockNumToBytes(testBlockNum)[1]);
                 }
             }
 
@@ -301,9 +290,7 @@ class ErrorSim extends CommonMethods
                     System.out.println("ACK Packet# " + delayBkNum + " will be delayed by " + delay + " ms.\n");
                 if (testOpcode == 5)
                     System.out.println("ERROR will be delayed by " + delay + " ms.\n");
-
             }
-
 
             if (mode == 3) {
                 System.out.print("\nDuplicating a Packet! \n");
@@ -643,16 +630,6 @@ class ErrorSim extends CommonMethods
 
                     }
 
-
-
-
-                    /*
-                    //Send to CLIENT
-                    txPacket = rxPacket;
-                    txPacket.setPort(client_port);
-                    txPacket.setAddress(InetAddress.getLocalHost());
-                    */
-                    
                     if(!isLost) {//Don't send lost packet
                     	clientSocket.send(txPacket);
                     	outputText(txPacket, direction.OUT, endhost.CLIENT, verboseOutput);
