@@ -512,6 +512,11 @@ class Client extends CommonMethods {
 				}
 				catch (SocketTimeoutException ste)
 				{
+					if (txPacket.getData()[1] == 1 || txPacket.getData()[1] == 2) {
+						System.out.println("\n*** No response received from Server... Please try again. ***\n");
+						break;
+					}
+
 					System.out.println("\n*** No response received from Server... Re-sending packet. ***\n");
 					socket.send(txPacket);
 					outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
