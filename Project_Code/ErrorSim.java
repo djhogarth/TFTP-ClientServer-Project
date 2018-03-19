@@ -17,44 +17,28 @@ class ErrorSim extends CommonMethods
     private static final int CLIENT_PORT = 9923;
     private static final int SERVER_PORT = 9969;
     private static final int DATA_SIZE = 516;
+    private static DatagramPacket rxPacket,txPacket;
 
     //testmode variables
-    static int mode = 0;	//0=normal,1=lose a packet,2=delay a packet,3=duplicate a packet and choose when to send it
-    static byte testOpcode = 0; //RRQ,WRQ,DATA,ACK,ERR
-    static int testBlockNum = -1; //0 to 65335 - for lost/delayed/duplicate DATA/ACK
-    static long delay = 0; //sleep in milliseconds
-    static boolean isLost = false; //is current packet lost
-    static DatagramPacket dupePack = null;
-    static byte delayOpcode = 0; //DATA,ACK delayed packet opcode to replace
-    static int delayBkNum = 0; //block number to replace
-
-
-    //Waits to receive packet from Client.java
-    //Upon receipt, forwards it to Server.java
-    //Waits to receive packet from Server.java
-    //Upon receipt, forwards it to Client.java
-    public static void main(String args[]) throws Exception
-    {
-        boolean inputValid = false;
+    private static int mode = 0;	//0=normal,1=lose a packet,2=delay a packet,3=duplicate a packet and choose when to send it, 4 = illegal packet , 5= unknown TID
+    private static byte testOpcode = 0; //RRQ,WRQ,DATA,ACK,ERR
+    private static int testBlockNum = -1; //0 to 65335 - for lost/delayed/duplicate DATA/ACK
+    private static long delay = 0; //sleep in milliseconds
+    private static boolean isLost = false; //is current packet lost
+    private static DatagramPacket testPacket = null; //used for Duplicate and Illegal packet test modes
+    private static DatagramSocket testSocket; //used for Unknown TID 
+    private static int illegalField; //chosen field to invalidate: 1 = opcode, 2 = mode, 3 = errorCode, 4 = blockNum .... May need to add  more
+    private static byte delayOpcode = 0; //DATA,ACK delayed packet opcode to replace
+    private static int delayBkNum = 0; //block number to replace
+    
+    //get user input for test modes
+    private static void getUserInput() {
+    	boolean inputValid = false;
         String input = "";
-        boolean verboseOutput = false;
+        
         boolean showMenu = true;
         boolean testMode = false;
         Scanner reader = new Scanner(System.in); // Reading from System.in
-
-        System.out.println("TFTP ErrorSim is running.\n");
-        DatagramSocket clientSocket = new DatagramSocket();
-        DatagramSocket serverSocket = new DatagramSocket();
-
-        int tempPort = 0;
-
-        try {
-            clientSocket = new DatagramSocket(CLIENT_PORT);
-            serverSocket = new DatagramSocket();
-        } catch (SocketException se) {
-            se.printStackTrace();
-            System.exit(1);
-        }
 
         while (showMenu) {
             inputValid = false;
@@ -383,16 +367,45 @@ class ErrorSim extends CommonMethods
                 if (testOpcode == 5)
                     System.out.println("ERROR will be re-transmitted after " + delay + " ms.\n");
             }
+            
+            if (mode == 4) {//Illegal Packet - choose the packet and choose the field to invalidate
+            		// illegalField; //chosen field to invalidate: 1 = opcode, 2 = mode, 3 = errorCode, 4 = blockNum .... May need to add  more
+            	
+            }
+            
+            if (mode == 5) {//Unknown TID - choose the packet to send
+            	
+            }
         }
+    }
 
+    //Waits to receive packet from Client.java
+    //Upon receipt, forwards it to Server.java
+    //Waits to receive packet from Server.java
+    //Upon receipt, forwards it to Client.java
+    public static void main(String args[]) throws Exception
+    {
+        
+    	System.out.println("TFTP ErrorSim is running.\n");
+        DatagramSocket clientSocket;
+        DatagramSocket serverSocket;
+        DatagramSocket testSocket = new DatagramSocket();
+        
+        boolean verboseOutput = false;
+        int tempPort = 0;
+
+        clientSocket = new DatagramSocket(CLIENT_PORT);
+        serverSocket = new DatagramSocket();
+     
         byte[] rxData = new byte[DATA_SIZE];
 
         boolean lastDataPkt = false;
-
+        
+        getUserInput();
+        
         while(true){
             try {
-                DatagramPacket rxPacket = new DatagramPacket(rxData, rxData.length);
-                DatagramPacket txPacket;
+                rxPacket = new DatagramPacket(rxData, rxData.length);
 
                 //--- RECEIVE FROM CLIENT ---///
                 clientSocket.receive(rxPacket);
@@ -502,6 +515,84 @@ class ErrorSim extends CommonMethods
                             timer.schedule(new resendPacket(txPacket, serverSocket, msg, direction.OUT, endhost.SERVER, verboseOutput), delay);
                             resetTestVars();
                         }
+                    }
+                }
+                
+                //--- Test Mode 4: Illegal Packet ---//
+                if(mode==4 && rxData[1]==testOpcode) {
+                	boolean isTestPacket = true;//Flag for checking testPacket opcode
+                	
+                    if (rxData[1] == 1) {//If RRQ
+                    	System.out.println("** Replacing RRQ packet with illegal packet!\n");
+                    }
+                    else if (rxData[1] == 2) {//If WRQ
+                    	System.out.println("** Replacing WRQ packet with illegal packet!\n");
+                    }
+                    else if(rxData[1]==5) {//if ERROR
+                    	System.out.println("** Replacing ERROR packet with illegal packet!\n");
+                    }
+                    else if(blockNumToBytes(testBlockNum)[0]==rxData[2] && blockNumToBytes(testBlockNum)[1]==rxData[3]) {//Otherwise check the block number
+                        if (rxData[1]==3) {
+                        	System.out.println("** Replacing DATA (Block number " + testBlockNum + ") with illegal packet! **\n");
+                        }
+                        else if (rxData[1]==4) {
+                        	System.out.println("** Replacing ACK (Block number " + testBlockNum + ") with illegal packet! **\n");
+                        }
+                    }else {
+                    	isTestPacket=false;
+                    }
+                    
+                    if(isTestPacket) {
+                    	// illegalField; //chosen field to invalidate: 1 = opcode, 2 = mode, 3 = errorCode, 4 = blockNum .... May need to add  more
+                    	if (illegalField==1) {
+                    		rxData[0]=9;
+                    		rxData[1]=9;		
+                    	}else if(illegalField==2) {//invalid mode should only be used for WRQ and RRQ
+                    		int i = 2;//get position of mode
+                    		while(rxData[i]!=0){
+                    			i++;
+                    		}
+                    		rxData[i+1]=-1;//Only need to change one character of mode to invalidate it
+                    	}else if(illegalField==3) {
+                    		rxData[2]=9;
+                    		rxData[3]=9;
+                    	}else if(illegalField==4) {
+                    		rxData[2]=-1;
+                    		rxData[2]=-1;
+                    	}
+                    	txPacket = new DatagramPacket(rxData, rxData.length);
+                    	outputText(txPacket, direction.OUT, endhost.SERVER, verboseOutput);
+                    	resetTestVars();
+                    }
+                }
+                
+                //--- Test Mode 5: Unknown TID ---//
+                if(mode==4 && rxData[1]==testOpcode) {
+                	boolean isTestPacket = true;//Flag for checking testPacket opcode
+                	
+                    if (rxData[1] == 1) {//If RRQ
+                    	System.out.println("** Sending RRQ packet with unknown TID!\n");
+                    }
+                    else if (rxData[1] == 2) {//If WRQ
+                    	System.out.println("** Sending WRQ packet with unknown TID!\n");
+                    }
+                    else if(rxData[1]==5) {//if ERROR
+                    	System.out.println("** Sending ERROR packet with unknown TID!\n");
+                    }
+                    else if(blockNumToBytes(testBlockNum)[0]==rxData[2] && blockNumToBytes(testBlockNum)[1]==rxData[3]) {//Otherwise check the block number
+                        if (rxData[1]==3) {
+                        	System.out.println("** Sending DATA (Block number " + testBlockNum + ") with unknown TID! **\n");
+                        }
+                        else if (rxData[1]==4) {
+                        	System.out.println("** Sending ACK (Block number " + testBlockNum + ") with unknown TID! **\n");
+                        }
+                    }else {
+                    	isTestPacket=false;
+                    }
+                    
+                    if(isTestPacket) {
+                    	testSocket.send(txPacket);
+                    	isLost=true;
                     }
                 }
 
@@ -627,7 +718,84 @@ class ErrorSim extends CommonMethods
                                 }
                             }
                         }
-
+                        
+                        //--- Test Mode 4: Illegal Packet ---//
+                        if(mode==4 && rxData[1]==testOpcode) {
+                        	boolean isTestPacket = true;//Flag for checking testPacket opcode
+                        	
+                            if (rxData[1] == 1) {//If RRQ
+                            	System.out.println("** Replacing RRQ packet with illegal packet!\n");
+                            }
+                            else if (rxData[1] == 2) {//If WRQ
+                            	System.out.println("** Replacing WRQ packet with illegal packet!\n");
+                            }
+                            else if(rxData[1]==5) {//if ERROR
+                            	System.out.println("** Replacing ERROR packet with illegal packet!\n");
+                            }
+                            else if(blockNumToBytes(testBlockNum)[0]==rxData[2] && blockNumToBytes(testBlockNum)[1]==rxData[3]) {//Otherwise check the block number
+                                if (rxData[1]==3) {
+                                	System.out.println("** Replacing DATA (Block number " + testBlockNum + ") with illegal packet! **\n");
+                                }
+                                else if (rxData[1]==4) {
+                                	System.out.println("** Replacing ACK (Block number " + testBlockNum + ") with illegal packet! **\n");
+                                }
+                            }else {
+                            	isTestPacket=false;
+                            }
+                            
+                            if(isTestPacket) {
+                            	// illegalField; //chosen field to invalidate: 1 = opcode, 2 = mode, 3 = errorCode, 4 = blockNum .... May need to add  more
+                            	if (illegalField==1) {
+                            		rxData[0]=9;
+                            		rxData[1]=9;		
+                            	}else if(illegalField==2) {//invalid mode should only be used for WRQ and RRQ
+                            		int i = 2;//get position of mode
+                            		while(rxData[i]!=0){
+                            			i++;
+                            		}
+                            		rxData[i+1]=-1;//Only need to change one character of mode to invalidate it
+                            	}else if(illegalField==3) {
+                            		rxData[2]=9;
+                            		rxData[3]=9;
+                            	}else if(illegalField==4) {
+                            		rxData[2]=-1;
+                            		rxData[2]=-1;
+                            	}
+                            	txPacket = new DatagramPacket(rxData, rxData.length);
+                            	resetTestVars();
+                            }
+                        }
+                        
+                        //--- Test Mode 5: Unknown TID ---//
+                        if(mode==4 && rxData[1]==testOpcode) {
+                        	boolean isTestPacket = true;//Flag for checking testPacket opcode
+                        	
+                            if (rxData[1] == 1) {//If RRQ
+                            	System.out.println("** Sending RRQ packet with unknown TID!\n");
+                            }
+                            else if (rxData[1] == 2) {//If WRQ
+                            	System.out.println("** Sending WRQ packet with unknown TID!\n");
+                            }
+                            else if(rxData[1]==5) {//if ERROR
+                            	System.out.println("** Sending ERROR packet with unknown TID!\n");
+                            }
+                            else if(blockNumToBytes(testBlockNum)[0]==rxData[2] && blockNumToBytes(testBlockNum)[1]==rxData[3]) {//Otherwise check the block number
+                                if (rxData[1]==3) {
+                                	System.out.println("** Sending DATA (Block number " + testBlockNum + ") with unknown TID! **\n");
+                                }
+                                else if (rxData[1]==4) {
+                                	System.out.println("** Sending ACK (Block number " + testBlockNum + ") with unknown TID! **\n");
+                                }
+                            }else {
+                            	isTestPacket=false;
+                            }
+                            
+                            if(isTestPacket) {
+                            	testSocket.send(txPacket);
+                            	outputText(txPacket, direction.OUT, endhost.CLIENT, verboseOutput);
+                            	isLost=true;
+                            }
+                        }
 
                     }
 
@@ -660,7 +828,7 @@ class ErrorSim extends CommonMethods
         testBlockNum = -1; //0 to 65335 - for lost/delayed/duplicate DATA/ACK
         delay = 0; //sleep in milliseconds
         isLost = false; //is current packet lost
-        dupePack = null;
+        testPacket = null;
         delayOpcode = 0; //DATA,ACK delayed packet opcode to replace
         delayBkNum = 0; //block number to replace
     }
