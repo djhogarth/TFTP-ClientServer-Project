@@ -28,6 +28,7 @@ class Client extends CommonMethods {
 	DatagramPacket txPacket, rxPacket; // Two datagrams for tx/rx
 	DatagramSocket socket; // Only need one socket since we never tx/rx simultaneously
 	private boolean verboseOutput = false; // Quiet output when false
+	private InetSocketAddress expectedTID = null;
 
 	public Client() {
 
@@ -532,6 +533,12 @@ class Client extends CommonMethods {
 				errorMessage = msg[3];
 			}
 		}
+		
+		//Error 5 can occur on any response packet
+		InetSocketAddress packetTID = (InetSocketAddress) packet.getSocketAddress();
+        if (this.expectedTID != null && this.expectedTID.equals(packetTID)) {
+        	errorMessage = msg[5];
+        }
 
 		// If we receive an Error Packet
 		if (data[0] == 0 && data[1] == 5) {
@@ -595,9 +602,11 @@ class Client extends CommonMethods {
 
 		outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
 
-		System.out.println("ERROR Complete: TERMINATING SOCKET");
-		socket.close();
-		System.exit(0);// shutdown after error
+		if (!error.equals("Unknown transfer ID.")) { //Do not close socket if error 5 (Unknown Transfer ID) occurs
+			System.out.println("ERROR Complete: TERMINATING SOCKET");
+			socket.close();
+			System.exit(0);// shutdown after error
+		}
 	}
 
 	/*
@@ -665,6 +674,9 @@ class Client extends CommonMethods {
 
 			if (isValidPkt) {
 				rxPacket = resizePacket(rxPacket);
+				if (expectedTID == null) {
+					expectedTID = (InetSocketAddress) rxPacket.getSocketAddress(); //Set expected TID of response
+				}
 				outputText(rxPacket, direction.IN, endhost.ERRORSIM, verboseOutput);
 				byte[] buffer = new byte[rxPacket.getLength() - 4];
 
@@ -694,8 +706,13 @@ class Client extends CommonMethods {
 							isValidPkt = false;
 					}
 				} else {
-					if (receiveData[1] != 5) sendError(rxPacket);//does not send error packet if received error packet
-					isValidPkt = false;
+					if (receiveData[1] == 5) {
+						return new Vector<byte[]>();
+					}
+					sendError(rxPacket);
+					if (!error.equals("Unknown transfer ID.")) {
+						return new Vector<byte[]>();
+	            	}
 				}
 			}
 		}
@@ -718,6 +735,7 @@ class Client extends CommonMethods {
 		byte[] sendData = new byte[] {0,0,0,0};
 		boolean gotResponse = false; //flag to determine if a response was received from the Server
 		int numResentPkt = 0;
+		String errorMsg;
 
 		while (true) {// Loop to receive ACK and send DATA until sent DATA<512 bytes
 			// create and receive ACK
@@ -754,11 +772,17 @@ class Client extends CommonMethods {
 			if (gotResponse) {
 				//System.out.println("port = " + getPort(rxPacket));
 				rxPacket = resizePacket(rxPacket);
+				if (expectedTID == null) {
+					expectedTID = (InetSocketAddress) rxPacket.getSocketAddress();
+				}
 				outputText(rxPacket, direction.IN, endhost.ERRORSIM, verboseOutput);
 
 				if (receiveData[1] == 5) return; //Stop write if it receives an error
-				if (checkError(rxPacket) != "No Error") {//check for error from server
+				if (!errorMsg.equals("No Error")) {//check for error from server
 					sendError(rxPacket);
+					if (!errorMsg.equals("Unknown transfer ID.")) {
+	            		return;
+	            	}
 				}
 
 				// create send DATA

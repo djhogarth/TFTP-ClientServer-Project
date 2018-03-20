@@ -29,7 +29,8 @@ class Server extends CommonMethods implements Runnable
     private boolean isListener = false;
     private boolean quitSignal = false;
     private boolean verboseOutput = false;
-
+    private InetSocketAddress expectedTID = null;
+	
     private String pathname;
     private int fileSize;//file size of written file
 
@@ -61,6 +62,7 @@ class Server extends CommonMethods implements Runnable
         this.socket = new DatagramSocket();
         this.packet = packet;
         this.verboseOutput = v;
+        this.expectedTID = (InetSocketAddress) packet.getSocketAddress();
     }
 
     //Waits to receive packet from ErrorSim.java
@@ -376,6 +378,11 @@ class Server extends CommonMethods implements Runnable
 		    	errorMessage = msg[3];
 		    }
         }
+		
+		InetSocketAddress packetTID = (InetSocketAddress) packet.getSocketAddress();
+        if (this.expectedTID != null && this.expectedTID.equals(packetTID)) {
+        	errorMessage = msg[5];
+        }
 
         return errorMessage;
     }
@@ -455,9 +462,11 @@ class Server extends CommonMethods implements Runnable
         socket.send(txPacket);
         outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
 
-        System.out.println("ERROR Complete: TERMINATING SOCKET");
-        socket.close();
-        //System.exit(0);//shutdown after error
+        if (!error.equals("Unknown transfer ID.")) { //Do not close socket if error 5 (Unknown Transfer ID) occurs
+        	System.out.println("ERROR Complete: TERMINATING SOCKET");
+        	socket.close();
+        	//System.exit(0);//shutdown after error
+        }
     }
 
     /*
@@ -480,7 +489,8 @@ class Server extends CommonMethods implements Runnable
         int numResentPkt = 0;
 
         fileSize=fileVector.size();
-        if (checkError(packet) != "No Error") {//initial WRQ file error check
+        String errorMsg = checkError(packet);
+        if (!errorMsg.equals("No Error")) {//initial WRQ file error check
         	sendError(packet);
         	return;
         }
@@ -546,9 +556,12 @@ class Server extends CommonMethods implements Runnable
 	            if (rxPacket.getLength()<DATA_SIZE) isValidFile = false;
 
 	            fileSize=fileVector.size();
-	            if (checkError(rxPacket) != "No Error") {//check received data
+	            errorMsg = checkError(rxPacket);
+	            if (!errorMsg.equals("No Error")) {//check received packet
 	            	sendError(rxPacket);
-	            	return;
+	            	if (!errorMsg.equals("Unknown transfer ID.")) {
+	            		return;
+	            	}
 	            }
             }
             else break;
@@ -563,8 +576,10 @@ class Server extends CommonMethods implements Runnable
 
         int blockNum=1;
 
+        String errorMsg = checkError(packet);
         if (checkError(packet) != "No Error") {//initial RRQ file error check
         	sendError(packet);
+        	return;
         }
 
         Path path = Paths.get(pathname + filename);
@@ -647,9 +662,13 @@ class Server extends CommonMethods implements Runnable
             if (gotResponse) {
                 rxPacket = resizePacket(rxPacket);
                 outputText(rxPacket, direction.IN, endhost.ERRORSIM, verboseOutput);
-                if (checkError(rxPacket) != "No Error") {
-                    sendError(rxPacket);
-                }
+                errorMsg = checkError(rxPacket);
+	            if (!errorMsg.equals("No Error")) {//check received packet
+	            	sendError(rxPacket);
+	            	if (!errorMsg.equals("Unknown transfer ID.")) {
+	            		return;
+	            	}
+	            }
             }
         }
 
