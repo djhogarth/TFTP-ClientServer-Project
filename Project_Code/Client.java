@@ -611,7 +611,7 @@ class Client extends CommonMethods {
 		boolean isValidPkt = true;
 		DatagramPacket txPacket = p;
 		int port = getPort(txPacket);
-
+		int numResentPkt = 0;
 		boolean gotResponse = false;
 		int dataCounter = 1;
 
@@ -642,15 +642,17 @@ class Client extends CommonMethods {
 				}
 				catch (SocketTimeoutException ste)
 				{
-					/*if (txPacket.getData()[1] == 1 || txPacket.getData()[1] == 2) {
-						System.out.println("\n*** No response received from Server... Please try again. ***\n");
+					if (numResentPkt >= 3) {
+						System.out.println("\n*** No response from Server after three attempts. ***\n");
 						break;
-					}*/
-
-					System.out.println("\n*** No response received from Server... Re-sending packet. ***\n");
-					socket.send(txPacket);
-					outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
-					socket.setSoTimeout(0); //infinite socket wait time
+					}
+					numResentPkt++;
+					if (txPacket.getData()[1] == 1 || txPacket.getData()[1] == 2) {//only resend if RRQ
+						System.out.println("\n*** No response received from Server... Re-sending packet. ***\n");
+						socket.send(txPacket);
+						outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
+						socket.setSoTimeout(0); //infinite socket wait time
+					}
 					gotResponse = false;
 				}
 			}
