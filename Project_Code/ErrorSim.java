@@ -71,6 +71,8 @@ class ErrorSim extends CommonMethods
                     + "(1)\t- Lose a Packet\n"
                     + "(2)\t- Delay a Packet\n"
                     + "(3)\t- Duplicate a Packet\n"
+                    + "(4)\t- Send an Illegal Packet\n"
+                    + "(5)\t- Send from Unknown TID\n"
                     + "(c)\t- Cancel Test Mode\n");
 
             inputValid = false;
@@ -92,6 +94,14 @@ class ErrorSim extends CommonMethods
                     case "3":
                         inputValid = true;
                         mode = 3;
+                        break;
+                    case "4":
+                        inputValid = true;
+                        mode = 4;
+                        break;
+                    case "5":
+                        inputValid = true;
+                        mode = 5;
                         break;
                     case "c":
                         inputValid = true;
@@ -369,7 +379,101 @@ class ErrorSim extends CommonMethods
             }
             
             if (mode == 4) {//Illegal Packet - choose the packet and choose the field to invalidate
-            		// illegalField; //chosen field to invalidate: 1 = opcode, 2 = mode, 3 = errorCode, 4 = blockNum .... May need to add  more
+            	// illegalField; //chosen field to invalidate: 1 = opcode, 2 = mode, 3 = errorCode, 4 = blockNum .... May need to add  more
+            	System.out.print("\nDelaying a Packet! \n");
+                System.out.print("(1)\t- Read Request\n"
+                        + "(2)\t- Write Request\n"
+                        + "(3)\t- Data\n"
+                        + "(4)\t- Acknowledgement\n"
+                        + "(5)\t- Error\n\n");
+
+
+                while (!inputValid) {
+                    System.out.print("Which packet type is being delayed? ");
+                    input = reader.nextLine();
+                    input = input.toLowerCase();
+
+                    switch (input) {
+                        case "1":
+                            inputValid = true;
+                            testOpcode = 1;
+                            delayOpcode = 1;
+                            break;
+                        case "2":
+                            inputValid = true;
+                            testOpcode = 2;
+                            delayOpcode = 2;
+                            break;
+                        case "3":
+                            inputValid = true;
+                            testOpcode = 3;
+                            delayOpcode = 3;
+                            break;
+                        case "4":
+                            inputValid = true;
+                            testOpcode = 4;
+                            delayOpcode = 4;
+                            break;
+                        case "5":
+                            inputValid = true;
+                            testOpcode = 5;
+                            delayOpcode = 5;
+                            break;
+                        default:
+                            System.out.println("The input is not valid.");
+                    }
+                }
+
+                if (testOpcode == 3 || testOpcode == 4) {
+                    inputValid = false;
+
+                    while (!inputValid) {
+                        System.out.print("What packet/block number would you like to delay? ");
+                        input = reader.nextLine();
+                        int tempNum = -1;
+
+                        try {
+                            tempNum = Integer.valueOf(input);
+                            if (tempNum > 0) {
+                                inputValid = true;
+                                delayBkNum = tempNum;
+                            }
+                        }
+                        catch (Exception e) {
+                            System.out.println("The input is not valid.");
+                        }
+                    }
+                }
+
+                //Delay Amount
+                inputValid = false;
+                while (!inputValid) {
+                    System.out.print("How long will the packet be delayed (in ms)? ");
+                    input = reader.nextLine();
+                    int tempNum = -1;
+
+                    try {
+                        tempNum = Integer.valueOf(input);
+                        if (tempNum > 0) {
+                            inputValid = true;
+                            delay = tempNum;
+                        }
+                    }
+                    catch (Exception e) {
+                        System.out.println("The input is not valid.");
+                    }
+                }
+
+                if (testOpcode == 1)
+                    System.out.println("RRQ will be delayed by " + delay + " ms.\n");
+                if (testOpcode == 2)
+                    System.out.println("WRQ will be delayed by " + delay + " ms.\n");
+                if (testOpcode == 3)
+                    System.out.println("DATA Packet# " + delayBkNum + " will be delayed by " + delay + " ms.\n");
+                if (testOpcode == 4)
+                    System.out.println("ACK Packet# " + delayBkNum + " will be delayed by " + delay + " ms.\n");
+                if (testOpcode == 5)
+                    System.out.println("ERROR will be delayed by " + delay + " ms.\n");
             	
             }
             
@@ -567,7 +671,7 @@ class ErrorSim extends CommonMethods
                 }
                 
                 //--- Test Mode 5: Unknown TID ---//
-                if(mode==4 && rxData[1]==testOpcode) {
+                if(mode==5 && rxData[1]==testOpcode) {
                 	boolean isTestPacket = true;//Flag for checking testPacket opcode
                 	
                     if (rxData[1] == 1) {//If RRQ
@@ -767,7 +871,7 @@ class ErrorSim extends CommonMethods
                         }
                         
                         //--- Test Mode 5: Unknown TID ---//
-                        if(mode==4 && rxData[1]==testOpcode) {
+                        if(mode==5 && rxData[1]==testOpcode) {
                         	boolean isTestPacket = true;//Flag for checking testPacket opcode
                         	
                             if (rxData[1] == 1) {//If RRQ

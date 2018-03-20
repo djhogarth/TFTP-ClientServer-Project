@@ -397,7 +397,7 @@ class Server extends CommonMethods implements Runnable
             try {
                 readRequest(port, filename);
             } catch (Exception e) {
-            	e.printStackTrace();
+            	//e.printStackTrace();  
             }
         }
         else if (data[0] == 0 && data[1] == 2)  //IF PACKET IS WRQ
@@ -405,7 +405,7 @@ class Server extends CommonMethods implements Runnable
             try {
                 writeRequest(port, filename);
             } catch (Exception e) {
-            	e.printStackTrace();
+            	//e.printStackTrace();
             }
         }
     }
