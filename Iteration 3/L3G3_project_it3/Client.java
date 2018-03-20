@@ -531,6 +531,11 @@ class Client extends CommonMethods {
 			if (f.exists() && !f.isDirectory()) {
 				errorMessage = msg[6];
 			}
+			if (!validatePacket(packet)) {
+
+				errorMessage = msg[4]; // check packet fields for RRQ
+
+			}
 		}
 
 		// Can do error 1 (file not found)
@@ -544,7 +549,11 @@ class Client extends CommonMethods {
 			} else {
 				errorMessage = msg[1];
 			}
+		if (!validatePacket(packet)) {  //check packet fields for WRQ
 
+				errorMessage = msg[4];
+
+			}
 		}
 
 		// Can do error 2 (access violation)
