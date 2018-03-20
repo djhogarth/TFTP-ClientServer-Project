@@ -342,6 +342,7 @@ class Server extends CommonMethods implements Runnable
                 //System.out.println(msg[1]); //File not found.
                 errorMessage = msg[1];
             }
+	   	   
         }
 
         //Can do error 2 (access violation)
@@ -354,7 +355,7 @@ class Server extends CommonMethods implements Runnable
             	//System.out.println(msg[6]); //File already exists.
                 errorMessage = msg[6];
             }
-
+	   	   
             f = new File("./ServerFiles/");
             if (!f.canWrite()) {
             	errorMessage = msg[2];
@@ -376,6 +377,10 @@ class Server extends CommonMethods implements Runnable
 		    	errorMessage = msg[3];
 		    }
         }
+	
+	if(!validatePacket(packet)){
+	    errorMessage = msg[4];
+	    }
 
         return errorMessage;
     }
