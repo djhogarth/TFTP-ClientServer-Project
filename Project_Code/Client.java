@@ -484,6 +484,8 @@ class Client extends CommonMethods {
 		String[] msg = new String[8];
 		msg[0] = "Not defined, see error message (if any).";
 		msg[1] = "File not found."; // -- Iteration 2	   -Done in user input WRQ
+
+		
 		msg[2] = "Access violation."; // -- Iteration 2
 		msg[3] = "Disk full or allocation exceeded."; // -- Iteration 2
 		msg[4] = "Illegal TFTP operation.";
@@ -541,6 +543,10 @@ class Client extends CommonMethods {
 					errorMessage = ascii;
 			}
 		}
+		
+	if(!validatePacket(packet){
+		errorMessage = msg[4];
+	}
 		return errorMessage;
 	}
 
