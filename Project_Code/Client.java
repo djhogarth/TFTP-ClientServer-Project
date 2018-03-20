@@ -346,6 +346,7 @@ class Client extends CommonMethods {
 	// running apps
 	public static void sendOOB(boolean verbose) throws Exception {
 		// HEADER ==> OPCODE = 0x99 | BOOLEAN VERBOSE
+
 		byte[] header = new byte[3];
 
 		// OPCODE
@@ -362,6 +363,120 @@ class Client extends CommonMethods {
 		OOBSocket.send(OOBPacket);
 		OOBSocket.close();
 	}
+	
+	 public synchronized static boolean validatePacket(DatagramPacket packet)
+
+    {
+
+        //BYTES [9-126] WILL COUNT AS VALID CHARACTERS
+
+        //BYTE 10 == LF == Line Feed
+
+        //ANYTHING ELSE IS "INVALID"
+
+        boolean isValid = false;
+
+        boolean isRequest = false;
+
+        boolean isError = false;
+
+        boolean filenameIsValid = true;
+
+        boolean modeIsValid = true;
+
+
+
+        //Counts the number of 0x0 in the packet (size of Vector) and their indexes in the packet (index values in Vector)
+
+        Vector<Integer> hasZero = new Vector<Integer>();
+
+
+
+        //If Packet is a RRQ or WRQ
+
+        if (packet.getData()[0] == 0 && (packet.getData()[1] == 1 || packet.getData()[1] == 2)) {
+
+            isValid = true;
+
+            isRequest = true;
+
+        }
+
+        if (packet.getData()[0] == 0 && packet.getData()[1] == 5) {
+
+            isValid = true;
+
+            isError = true;
+
+        }
+		 
+        if (isError)
+
+        {
+            //System.out.println("Packet is Error");
+
+        }
+		 
+        if (isRequest)
+
+        {
+
+            //System.out.println("Packet is Request");
+
+        }
+
+        if (isValid)
+
+        {
+            for (int i = 2; i < packet.getLength(); i++)
+
+            {
+
+                if (packet.getData()[i] == 0) {
+
+                    hasZero.addElement(i);
+
+                }
+            }
+
+            if (hasZero.size() >= 2)
+
+            {
+                for (int i = 2; i < hasZero.elementAt(0); i++)
+
+                {
+
+                    if ((packet.getData()[i] <= 8 && packet.getData()[i] != 0) || (packet.getData()[i] >= 127))
+
+                        filenameIsValid = false;
+                }
+
+
+
+                for (int i = hasZero.elementAt(0) + 1; i < hasZero.elementAt(1); i++)
+
+                {
+                    if ((packet.getData()[i] <= 8 && packet.getData()[i] != 0) || (packet.getData()[i] >= 127))
+
+                        modeIsValid = false;
+                }
+
+            }
+
+            else
+                isValid = false;
+
+            if (isValid && modeIsValid && filenameIsValid)
+
+                return true;
+
+            else
+
+                return false;
+        }
+
+        return isValid;
+    }
 
 	//Function takes a packet and returns a corresponding error message
 	public synchronized String checkError(DatagramPacket packet) {
