@@ -609,6 +609,12 @@ class Client extends CommonMethods {
 		}
 
 		outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
+		
+		if (!error.equals("Illegal TFTP operation.")) { //Do not close socket if error 4 (Illegal TFTP operation) occurs
+			System.out.println("ERROR Complete: TERMINATING SOCKET");
+			socket.close();
+			System.exit(0);// shutdown after error
+		}
 
 		if (!error.equals("Unknown transfer ID.")) { //Do not close socket if error 5 (Unknown Transfer ID) occurs
 			System.out.println("ERROR Complete: TERMINATING SOCKET");
@@ -722,6 +728,9 @@ class Client extends CommonMethods {
 					if (!error.equals("Unknown transfer ID.")) {
 						return new Vector<byte[]>();
 	            	}
+					if (!error.equals("Illegal TFTP operation.")) {
+						return new Vector<byte[]>();
+	            	}
 				}
 			}
 		}
@@ -790,6 +799,9 @@ class Client extends CommonMethods {
 				if (!errorMsg.equals("No Error")) {//check for error from server
 					sendError(rxPacket);
 					if (!errorMsg.equals("Unknown transfer ID.")) {
+	            		return;
+	            	}
+					if (!errorMsg.equals("Illegal TFTP operation.")) {
 	            		return;
 	            	}
 				}
