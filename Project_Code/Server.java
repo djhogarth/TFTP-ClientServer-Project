@@ -383,6 +383,10 @@ class Server extends CommonMethods implements Runnable
         if (this.expectedTID != null && this.expectedTID.equals(packetTID)) {
         	errorMessage = msg[5];
         }
+        
+        if(!validatePacket(packet)) {
+        	errorMessage = msg[4];
+        }
 
         return errorMessage;
     }
@@ -462,6 +466,12 @@ class Server extends CommonMethods implements Runnable
         socket.send(txPacket);
         outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
 
+        if (!error.equals("Illegal TFTP operation.")) { //Do not close socket if error 4 (Illegal TFTP operation) occurs
+			System.out.println("ERROR Complete: TERMINATING SOCKET");
+			socket.close();
+			System.exit(0);// shutdown after error
+		}
+        
         if (!error.equals("Unknown transfer ID.")) { //Do not close socket if error 5 (Unknown Transfer ID) occurs
         	System.out.println("ERROR Complete: TERMINATING SOCKET");
         	socket.close();
@@ -560,6 +570,9 @@ class Server extends CommonMethods implements Runnable
 	            if (!errorMsg.equals("No Error")) {//check received packet
 	            	sendError(rxPacket);
 	            	if (!errorMsg.equals("Unknown transfer ID.")) {
+	            		return;
+	            	}
+	            	if (!errorMsg.equals("Illegal TFTP operation.")) {
 	            		return;
 	            	}
 	            }
@@ -666,6 +679,9 @@ class Server extends CommonMethods implements Runnable
 	            if (!errorMsg.equals("No Error")) {//check received packet
 	            	sendError(rxPacket);
 	            	if (!errorMsg.equals("Unknown transfer ID.")) {
+	            		return;
+	            	}
+	            	if (!errorMsg.equals("Illegal TFTP operation.")) {
 	            		return;
 	            	}
 	            }
