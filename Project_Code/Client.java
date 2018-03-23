@@ -8,7 +8,13 @@
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.net.*;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.SocketException;
+import java.net.SocketTimeoutException;
+import java.net.UnknownHostException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -402,7 +408,8 @@ class Client extends CommonMethods {
             isRequest = true;
 
         }
-
+        
+       
         if (packet.getData()[0] == 0 && packet.getData()[1] == 5) {
 
             isValid = true;
@@ -425,6 +432,7 @@ class Client extends CommonMethods {
             //System.out.println("Packet is Request");
 
         }
+       
 
         if (isValid)
 
@@ -551,7 +559,7 @@ class Client extends CommonMethods {
 			}
 		}
 		
-	if(!validatePacket(packet){
+	if(!validatePacket(packet)){
 		errorMessage = msg[4];
 	}
 		return errorMessage;
@@ -695,6 +703,7 @@ class Client extends CommonMethods {
 					// bytes
 					if (receiveData[1] != 3)
 						isValidPkt = false;
+						
 					else {
 						// create and send Ack packet with block # of received packet
 						byte[] sendData = new byte[]{0, 4, receiveData[2], receiveData[3]};
@@ -735,7 +744,7 @@ class Client extends CommonMethods {
 		byte[] sendData = new byte[] {0,0,0,0};
 		boolean gotResponse = false; //flag to determine if a response was received from the Server
 		int numResentPkt = 0;
-		String errorMsg;
+		String errorMsg = null;
 
 		while (true) {// Loop to receive ACK and send DATA until sent DATA<512 bytes
 			// create and receive ACK
