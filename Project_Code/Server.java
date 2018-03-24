@@ -105,7 +105,7 @@ class Server extends CommonMethods implements Runnable
 
         if (isError)
         {
-        	int length = packet.getData().length;
+        	int length = packet.getData().length;  
         	
         	if (packet.getData()[2] != 0 || (packet.getData()[3] < 1 && packet.getData()[3] > 7)) {
         		isError = false;
@@ -113,8 +113,7 @@ class Server extends CommonMethods implements Runnable
         	
         	if(!(packet.getData()[length-1] == 0)) {
         		isError = false;
-        	}
-        	
+        	}        	  	        	
         	
         }
 
@@ -168,7 +167,7 @@ class Server extends CommonMethods implements Runnable
             else
                 isValid = false;
 
-            if (isValid && modeIsValid && filenameIsValid&&isRequest&&isError)
+            if (isValid && modeIsValid && filenameIsValid && isRequest && isError)
                 return true;
             else
                 return false;
