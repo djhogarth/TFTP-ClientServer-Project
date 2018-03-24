@@ -14,6 +14,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.Path;
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.InputStreamReader;
 import java.io.File;
 
@@ -104,12 +105,41 @@ class Server extends CommonMethods implements Runnable
 
         if (isError)
         {
-            //System.out.println("Packet is Error");
+        	int length = packet.getData().length;
+        	
+        	if (packet.getData()[2] != 0 || (packet.getData()[3] < 1 && packet.getData()[3] > 7)) {
+        		isError = false;
+    		}
+        	
+        	if(!(packet.getData()[length-1] == 0)) {
+        		isError = false;
+        	}
+        	
+        	
         }
 
         if (isRequest)
         {
-            //System.out.println("Packet is Request");
+        	ByteArrayOutputStream mode = new ByteArrayOutputStream(); // to store mode 
+        	int length = packet.getData().length; // 
+        	byte [] data = packet.getData();
+        	int i;
+        	
+        	//Go until first 0 seperator
+        	for (i = 2; data[i] != 0 && i < length; ++i) {
+    			// we could get fileName here
+    		}
+        	
+        	//Go until second 0 seperator
+        	for (i += 1; data[i] != 0 && i < length; ++i) {
+    			mode.write(data[i]); 
+    		}
+        	
+        	//check if mode is valid
+        	if (!(mode.toString().toLowerCase().equals("netascii") || mode.toString().toLowerCase().equals("octet"))) {
+        		modeIsValid = false;
+        		isRequest = false;
+    		}
         }
 
         if (isValid)

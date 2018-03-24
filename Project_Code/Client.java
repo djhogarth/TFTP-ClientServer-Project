@@ -5,6 +5,7 @@
   DETAILS - A program that will generate valid TFTP datagram packets and sends them to ErrorSim
 */
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -419,18 +420,42 @@ class Client extends CommonMethods {
         }
 		 
         if (isError)
-
         {
-            //System.out.println("Packet is Error");
-
+        	int length = packet.getData().length;
+        	
+        	if (packet.getData()[2] != 0 || (packet.getData()[3] < 1 && packet.getData()[3] > 7)) {
+        		isError = false;
+    		}
+        	
+        	if(!(packet.getData()[length-1] == 0)) {
+        		isError = false;
+        	}
+        	
+        	
         }
-		 
+
         if (isRequest)
-
         {
-
-            //System.out.println("Packet is Request");
-
+        	ByteArrayOutputStream mode = new ByteArrayOutputStream(); // to store mode 
+        	int length = packet.getData().length; // 
+        	byte [] data = packet.getData();
+        	int i;
+        	
+        	//Go until first 0 seperator
+        	for (i = 2; data[i] != 0 && i < length; ++i) {
+    			// we could get fileName here
+    		}
+        	
+        	//Go until second 0 seperator
+        	for (i += 1; data[i] != 0 && i < length; ++i) {
+    			mode.write(data[i]); 
+    		}
+        	
+        	//check if mode is valid
+        	if (!(mode.toString().toLowerCase().equals("netascii") || mode.toString().toLowerCase().equals("octet"))) {
+        		modeIsValid = false;
+        		isRequest = false;
+    		}
         }
        
 
