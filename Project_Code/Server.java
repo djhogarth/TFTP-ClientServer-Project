@@ -78,12 +78,11 @@ class Server extends CommonMethods implements Runnable
     }
 
     //A function that verifies that a packet is a valid TFTP packet
-    public synchronized static boolean validatePacket(DatagramPacket packet)
-    {
+    public synchronized static boolean validatePacket(DatagramPacket packet){
         //BYTES [9-126] WILL COUNT AS VALID CHARACTERS
         //BYTE 10 == LF == Line Feed
         //ANYTHING ELSE IS "INVALID"
-        boolean isValid = false;
+        boolean isValid = true;
         boolean isRequest = false;
         boolean isError = false;
         boolean filenameIsValid = true;
@@ -91,35 +90,30 @@ class Server extends CommonMethods implements Runnable
 
         //Counts the number of 0x0 in the packet (size of Vector) and their indexes in the packet (index values in Vector)
         Vector<Integer> hasZero = new Vector<Integer>();
-
-        //If Packet is a RRQ or WRQ
+        
+        //check opcode
         if (packet.getData()[0] == 0 && (packet.getData()[1] == 1 || packet.getData()[1] == 2)) {
-            isValid = true;
             isRequest = true;
-        }
-
-        if (packet.getData()[0] == 0 && packet.getData()[1] == 5) {
-            isValid = true;
+        }else if (packet.getData()[0] == 0 && packet.getData()[1] == 5) {
             isError = true;
+        }else if(packet.getData()[0] != 0 || (packet.getData()[1] < 1 || packet.getData()[1] > 5)) {
+        	isValid = false;
         }
-
-        if (isError)
-        {
+		 
+        //check errorcode
+        if (isError) {
         	int length = packet.getData().length;
-        	
         	if (packet.getData()[2] != 0 || (packet.getData()[3] < 1 && packet.getData()[3] > 7)) {
-        		isError = false;
+        		isValid = false;
     		}
-        	
         	if(!(packet.getData()[length-1] == 0)) {
-        		isError = false;
+        		isValid = false;
         	}
-        	
-        	
         }
-
-        if (isRequest)
-        {
+        
+        
+        //check request
+        if (isRequest){
         	ByteArrayOutputStream mode = new ByteArrayOutputStream(); // to store mode 
         	int length = packet.getData().length; // 
         	byte [] data = packet.getData();
@@ -137,42 +131,39 @@ class Server extends CommonMethods implements Runnable
         	
         	//check if mode is valid
         	if (!(mode.toString().toLowerCase().equals("netascii") || mode.toString().toLowerCase().equals("octet"))) {
+        		isValid=false;
         		modeIsValid = false;
-        		isRequest = false;
     		}
+        	if(!(packet.getData()[length-1] == 0)) {
+        		isValid = false;
+        	}
         }
-
-        if (isValid)
-        {
-            for (int i = 2; i < packet.getLength(); i++)
-            {
+       
+        // doesnt work
+        /*if (isValid){
+            for (int i = 2; i < packet.getLength(); i++){
                 if (packet.getData()[i] == 0) {
                     hasZero.addElement(i);
                 }
             }
-
-            if (hasZero.size() >= 2)
-            {
-                for (int i = 2; i < hasZero.elementAt(0); i++)
-                {
+            if (hasZero.size() >= 2){
+                for (int i = 2; i < hasZero.elementAt(0); i++){
                     if ((packet.getData()[i] <= 8 && packet.getData()[i] != 0) || (packet.getData()[i] >= 127))
                         filenameIsValid = false;
                 }
 
-                for (int i = hasZero.elementAt(0) + 1; i < hasZero.elementAt(1); i++)
-                {
+                for (int i = hasZero.elementAt(0) + 1; i < hasZero.elementAt(1); i++){
                     if ((packet.getData()[i] <= 8 && packet.getData()[i] != 0) || (packet.getData()[i] >= 127))
                         modeIsValid = false;
                 }
             }
             else
                 isValid = false;
-
-            if (isValid && modeIsValid && filenameIsValid&&isRequest&&isError)
+            if (isValid && modeIsValid && filenameIsValid && isRequest && isError)
                 return true;
             else
                 return false;
-        }
+        }*/
 
         return isValid;
     }
@@ -272,8 +263,8 @@ class Server extends CommonMethods implements Runnable
             }
 
             //Ensures inbound packets are formatted correctly
-            //Once validated, creates a new SENDER thread and runs it
-            if (validatePacket(rxPacket) && !isOOB(rxPacket)) {
+            //creates a new SENDER thread and runs it
+            if (!isOOB(rxPacket)) {
 
                 try {
                     Thread sendReply = new Thread(new Server(rxPacket, verboseOutput), "SENDER");
@@ -409,8 +400,9 @@ class Server extends CommonMethods implements Runnable
 		    }
         }
 		
+        //Error 05 Unknown TID
 		InetSocketAddress packetTID = (InetSocketAddress) packet.getSocketAddress();
-        if (this.expectedTID != null && this.expectedTID.equals(packetTID)) {
+        if (this.expectedTID != null && !this.expectedTID.equals(packetTID)) {
         	errorMessage = msg[5];
         }
         
@@ -427,8 +419,10 @@ class Server extends CommonMethods implements Runnable
     public synchronized void sendReply(DatagramPacket packet, DatagramSocket socket)
     {
         byte[] data = packet.getData();
-        String filename = getFilename(packet);
-
+        String filename = "";
+        if(validatePacket(packet)){
+        	filename = getFilename(packet);
+        }
         //Extract ErrorSim socket's port from packet
         InetSocketAddress temp_add = (InetSocketAddress)packet.getSocketAddress();
         int port = temp_add.getPort();
@@ -441,7 +435,7 @@ class Server extends CommonMethods implements Runnable
             	//e.printStackTrace();  
             }
         }
-        else if (data[0] == 0 && data[1] == 2)  //IF PACKET IS WRQ
+        else  //IF PACKET IS WRQ or anything else
         {
             try {
                 writeRequest(port, filename);
@@ -463,7 +457,6 @@ class Server extends CommonMethods implements Runnable
   //Takes a packet with a file error and sends an ERROR packet back
     public void sendError(DatagramPacket packet) throws Exception
     {
-        socket = new DatagramSocket();
         String error = checkError(packet);
 
         byte[] sendData = new byte[DATA_SIZE];
@@ -495,12 +488,6 @@ class Server extends CommonMethods implements Runnable
         txPacket = resizePacket(txPacket);
         socket.send(txPacket);
         outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
-
-        if (!error.equals("Illegal TFTP operation.")) { //Do not close socket if error 4 (Illegal TFTP operation) occurs
-			System.out.println("ERROR Complete: TERMINATING SOCKET");
-			socket.close();
-			System.exit(0);// shutdown after error
-		}
         
         if (!error.equals("Unknown transfer ID.")) { //Do not close socket if error 5 (Unknown Transfer ID) occurs
         	System.out.println("ERROR Complete: TERMINATING SOCKET");
@@ -521,10 +508,11 @@ class Server extends CommonMethods implements Runnable
     public synchronized void writeRequest(int port,String filename) throws Exception {
         boolean isValidFile = true;
         Vector<byte[]> fileVector = new Vector<byte[]>();
-
+        
+        DatagramPacket txPacket = null;
         byte[] sendData = new byte[]{0,4,0,0};//block 0 ACK packet
-
         boolean gotResponse = false;
+        boolean isUnknown = false;//placeholder for not sending ack when receiving unknown TID error
         int dataCounter = 1;
         int numResentPkt = 0;
 
@@ -536,42 +524,45 @@ class Server extends CommonMethods implements Runnable
         }
 
         while(true) {//Loop to send ACK and receive DATA until DATA<512 bytes
-
+        
         	//send ACK packet to Client
-            DatagramPacket txPacket = new DatagramPacket(sendData,sendData.length,InetAddress.getLocalHost(),port);
-            socket.setSoTimeout(10000);
-            socket.send(txPacket);
-            outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
-
+        	if(!isUnknown) {
+	            txPacket = new DatagramPacket(sendData,sendData.length,InetAddress.getLocalHost(),port);
+	            socket.setSoTimeout(10000);
+	            socket.send(txPacket);
+	            outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
+        	}
+        	
             if(isValidFile) {
-	            //receive DATA packet from Client
+        		//receive DATA packet from Client
 	            byte[] receiveData = new byte[DATA_SIZE];
 	            DatagramPacket rxPacket = new DatagramPacket(receiveData, receiveData.length);
                 gotResponse = false;
-
-
-                while (!gotResponse) {// Loop receive from server until either Valid ACK or ERROR is received
+            
+                while (!gotResponse) {// Loop receive from server until either Valid DATA or ERROR is received
+	                isUnknown = false;
                     socket.setSoTimeout(5000);
                     try {
                         socket.receive(rxPacket);
                         receiveData = rxPacket.getData();
-
-                        if(receiveData[1]==5 || (receiveData[1] == 3 && receiveData[2] + receiveData[3] == dataCounter)){
-                            gotResponse = true;
-                            dataCounter++;
-                        }
+                        if(receiveData[1]==5 || (receiveData[1] == 3 && (receiveData[2] == blockNumToBytes(dataCounter)[0] && receiveData[3] == blockNumToBytes(dataCounter)[1]) ) 
+                        		|| !checkError(rxPacket).equals("No Error")){
+    						gotResponse = true;
+    						dataCounter++;
+    					}
                     }
                     catch (SocketTimeoutException ste)
                     {
                         if (numResentPkt >= 3) {
-                            System.out.println("\n*** No response from Client after three attempts. ***\n");
-                            break;
+                            System.out.println("\n*** No response from Client. ***\n");
+                            return;
                         }
 
                         numResentPkt++;
-                        System.out.println("\n*** No response received from Client... Re-sending packet. ***\n");
-                        socket.send(txPacket);
-                        outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
+                        //Don't resend acks
+                        //System.out.println("\n*** No response received from Client... Re-sending packet. ***\n");
+                        //socket.send(txPacket);
+                        //outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
                         socket.setSoTimeout(0); //infinite socket wait time
                         gotResponse = false;
                     }
@@ -599,13 +590,16 @@ class Server extends CommonMethods implements Runnable
 	            errorMsg = checkError(rxPacket);
 	            if (!errorMsg.equals("No Error")) {//check received packet
 	            	sendError(rxPacket);
-	            	if (!errorMsg.equals("Unknown transfer ID.")) {
-	            		return;
-	            	}
-	            	if (!errorMsg.equals("Illegal TFTP operation.")) {
+	            	if (errorMsg.equals("Unknown transfer ID.")) {
+	            		isUnknown = true;
+	            		isValidFile=true;
+	            		dataCounter--;
+	            	}else {
 	            		return;
 	            	}
 	            }
+	            if (receiveData[1]==5)//STOP if received ERROR
+	            	return;
             }
             else break;
         }
@@ -683,7 +677,7 @@ class Server extends CommonMethods implements Runnable
                 try {
                     socket.receive(rxPacket);
 
-                    if (receiveData[1] == 5 || (sendData[2] == receiveData[2] && sendData[3] == receiveData[3])) {
+                    if (receiveData[1] == 5 || (sendData[2] == receiveData[2] && sendData[3] == receiveData[3]) || !checkError(rxPacket).equals("No Error")) {
                         gotResponse = true;
                     }
                 } catch (SocketTimeoutException ste) {
@@ -709,9 +703,6 @@ class Server extends CommonMethods implements Runnable
 	            if (!errorMsg.equals("No Error")) {//check received packet
 	            	sendError(rxPacket);
 	            	if (!errorMsg.equals("Unknown transfer ID.")) {
-	            		return;
-	            	}
-	            	if (!errorMsg.equals("Illegal TFTP operation.")) {
 	            		return;
 	            	}
 	            }

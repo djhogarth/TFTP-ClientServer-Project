@@ -372,70 +372,43 @@ class Client extends CommonMethods {
 		OOBSocket.close();
 	}
 	
-	 public synchronized static boolean validatePacket(DatagramPacket packet)
-
-    {
-
+    //A function that verifies that a packet is a valid TFTP packet
+	 public synchronized static boolean validatePacket(DatagramPacket packet){
         //BYTES [9-126] WILL COUNT AS VALID CHARACTERS
-
         //BYTE 10 == LF == Line Feed
-
         //ANYTHING ELSE IS "INVALID"
-
-        boolean isValid = false;
-
+        boolean isValid = true;
         boolean isRequest = false;
-
         boolean isError = false;
-
         boolean filenameIsValid = true;
-
         boolean modeIsValid = true;
 
-
-
         //Counts the number of 0x0 in the packet (size of Vector) and their indexes in the packet (index values in Vector)
-
         Vector<Integer> hasZero = new Vector<Integer>();
-
-
-
-        //If Packet is a RRQ or WRQ
-
-        if (packet.getData()[0] == 0 && (packet.getData()[1] == 1 || packet.getData()[1] == 2)) {
-
-            isValid = true;
-
-            isRequest = true;
-
-        }
         
-       
-        if (packet.getData()[0] == 0 && packet.getData()[1] == 5) {
-
-            isValid = true;
-
+        //check opcode
+        if (packet.getData()[0] == 0 && (packet.getData()[1] == 1 || packet.getData()[1] == 2)) {
+            isRequest = true;
+        }else if (packet.getData()[0] == 0 && packet.getData()[1] == 5) {
             isError = true;
-
+        }else if(packet.getData()[0] != 0 && (packet.getData()[1] < 1 || packet.getData()[1] > 5)) {
+        	isValid = false;
         }
 		 
-        if (isError)
-        {
+        //check errorcode
+        if (isError) {
         	int length = packet.getData().length;
-        	
         	if (packet.getData()[2] != 0 || (packet.getData()[3] < 1 && packet.getData()[3] > 7)) {
-        		isError = false;
+        		isValid = false;
     		}
-        	
         	if(!(packet.getData()[length-1] == 0)) {
-        		isError = false;
+        		isValid = false;
         	}
-        	
-        	
         }
-
-        if (isRequest)
-        {
+        
+        
+        //check request
+        if (isRequest){
         	ByteArrayOutputStream mode = new ByteArrayOutputStream(); // to store mode 
         	int length = packet.getData().length; // 
         	byte [] data = packet.getData();
@@ -453,61 +426,39 @@ class Client extends CommonMethods {
         	
         	//check if mode is valid
         	if (!(mode.toString().toLowerCase().equals("netascii") || mode.toString().toLowerCase().equals("octet"))) {
+        		isValid=false;
         		modeIsValid = false;
-        		isRequest = false;
     		}
+        	if(!(packet.getData()[length-1] == 0)) {
+        		isValid = false;
+        	}
         }
        
-
-        if (isValid)
-
-        {
-            for (int i = 2; i < packet.getLength(); i++)
-
-            {
-
+        // doesnt work
+        /*if (isValid){
+            for (int i = 2; i < packet.getLength(); i++){
                 if (packet.getData()[i] == 0) {
-
                     hasZero.addElement(i);
-
                 }
             }
-
-            if (hasZero.size() >= 2)
-
-            {
-                for (int i = 2; i < hasZero.elementAt(0); i++)
-
-                {
-
+            if (hasZero.size() >= 2){
+                for (int i = 2; i < hasZero.elementAt(0); i++){
                     if ((packet.getData()[i] <= 8 && packet.getData()[i] != 0) || (packet.getData()[i] >= 127))
-
                         filenameIsValid = false;
                 }
 
-
-
-                for (int i = hasZero.elementAt(0) + 1; i < hasZero.elementAt(1); i++)
-
-                {
+                for (int i = hasZero.elementAt(0) + 1; i < hasZero.elementAt(1); i++){
                     if ((packet.getData()[i] <= 8 && packet.getData()[i] != 0) || (packet.getData()[i] >= 127))
-
                         modeIsValid = false;
                 }
-
             }
-
             else
                 isValid = false;
-
             if (isValid && modeIsValid && filenameIsValid && isRequest && isError)
-
                 return true;
-
             else
-
                 return false;
-        }
+        }*/
 
         return isValid;
     }
@@ -518,8 +469,6 @@ class Client extends CommonMethods {
 		String[] msg = new String[8];
 		msg[0] = "Not defined, see error message (if any).";
 		msg[1] = "File not found."; // -- Iteration 2	   -Done in user input WRQ
-
-		
 		msg[2] = "Access violation."; // -- Iteration 2
 		msg[3] = "Disk full or allocation exceeded."; // -- Iteration 2
 		msg[4] = "Illegal TFTP operation.";
@@ -569,7 +518,7 @@ class Client extends CommonMethods {
 		
 		//Error 5 can occur on any response packet
 		InetSocketAddress packetTID = (InetSocketAddress) packet.getSocketAddress();
-        if (this.expectedTID != null && this.expectedTID.equals(packetTID)) {
+        if (this.expectedTID != null && !this.expectedTID.equals(packetTID)) {
         	errorMessage = msg[5];
         }
 
@@ -584,9 +533,9 @@ class Client extends CommonMethods {
 			}
 		}
 		
-	if(!validatePacket(packet)){
-		errorMessage = msg[4];
-	}
+		if(!validatePacket(packet)){
+			errorMessage = msg[4];
+		}
 		return errorMessage;
 	}
 
@@ -634,12 +583,6 @@ class Client extends CommonMethods {
 		}
 
 		outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
-		
-		if (!error.equals("Illegal TFTP operation.")) { //Do not close socket if error 4 (Illegal TFTP operation) occurs
-			System.out.println("ERROR Complete: TERMINATING SOCKET");
-			socket.close();
-			System.exit(0);// shutdown after error
-		}
 
 		if (!error.equals("Unknown transfer ID.")) { //Do not close socket if error 5 (Unknown Transfer ID) occurs
 			System.out.println("ERROR Complete: TERMINATING SOCKET");
@@ -688,7 +631,8 @@ class Client extends CommonMethods {
 					receiveData = rxPacket.getData();
 
 					//if(receiveData[1]==5 || (receiveData[1] == 3 && receiveData[2] + receiveData[3] == dataCounter)){
-					if(receiveData[1]==5 || (receiveData[1] == 3 && (receiveData[2] == blockNumToBytes(dataCounter)[0] && receiveData[3] == blockNumToBytes(dataCounter)[1]) ) ){
+					if(receiveData[1]==5 || (receiveData[1] == 3 && (receiveData[2] == blockNumToBytes(dataCounter)[0] && receiveData[3] == blockNumToBytes(dataCounter)[1]) 
+							|| !checkError(rxPacket).equals("No Error")) ){
 						gotResponse = true;
 						isValidPkt = true;
 						dataCounter++;
@@ -705,8 +649,8 @@ class Client extends CommonMethods {
 						System.out.println("\n*** No response received from Server... Re-sending packet. ***\n");
 						socket.send(txPacket);
 						outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
-						socket.setSoTimeout(0); //infinite socket wait time
 					}
+					socket.setSoTimeout(0); //infinite socket wait time
 					gotResponse = false;
 				}
 			}
@@ -746,15 +690,11 @@ class Client extends CommonMethods {
 							isValidPkt = false;
 					}
 				} else {
-					if (receiveData[1] == 5) {
-						return new Vector<byte[]>();
-					}
+					if (receiveData[1]==5)//STOP if received ERROR
+		            	return tempVector;
 					sendError(rxPacket);
-					if (!error.equals("Unknown transfer ID.")) {
-						return new Vector<byte[]>();
-	            	}
-					if (!error.equals("Illegal TFTP operation.")) {
-						return new Vector<byte[]>();
+					if (error.equals("Unknown transfer ID.")) {
+						dataCounter--;
 	            	}
 				}
 			}
@@ -793,7 +733,7 @@ class Client extends CommonMethods {
 					socket.receive(rxPacket);
 					receiveData = rxPacket.getData();
 
-					if(receiveData[1]==5 || (sendData[2]==receiveData[2] && sendData[3]==receiveData[3]))
+					if(receiveData[1]==5 || (sendData[2]==receiveData[2] && sendData[3]==receiveData[3] || !checkError(rxPacket).equals("No Error")))
 						gotResponse = true;
 				}
 				catch (SocketTimeoutException ste)
@@ -819,14 +759,11 @@ class Client extends CommonMethods {
 					expectedTID = (InetSocketAddress) rxPacket.getSocketAddress();
 				}
 				outputText(rxPacket, direction.IN, endhost.ERRORSIM, verboseOutput);
-
+				
 				if (receiveData[1] == 5) return; //Stop write if it receives an error
-				if (!errorMsg.equals("No Error")) {//check for error from server
+				if (!checkError(rxPacket).equals("No Error")) {//check for error from server
 					sendError(rxPacket);
-					if (!errorMsg.equals("Unknown transfer ID.")) {
-	            		return;
-	            	}
-					if (!errorMsg.equals("Illegal TFTP operation.")) {
+					if (!checkError(rxPacket).equals("Unknown transfer ID.")) {
 	            		return;
 	            	}
 				}
