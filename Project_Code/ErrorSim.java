@@ -379,8 +379,8 @@ class ErrorSim extends CommonMethods
             }
             
             if (mode == 4) {//Illegal Packet - choose the packet and choose the field to invalidate
-            	// illegalField; //chosen field to invalidate: 1 = opcode, 2 = mode, 3 = errorCode, 4 = blockNum .... May need to add  more
-            	System.out.print("\nDelaying a Packet! \n");
+            	// illegalField; //chosen field to invalidate: 1 = opcode, 2 = mode (only for RRQ/WRQ), 3 = errorCode (only for errors), 4 = invalidate structure(replace all zeroes) .... May need to add  more
+            	System.out.print("\nInvalidating a Packet! \n");
                 System.out.print("(1)\t- Read Request\n"
                         + "(2)\t- Write Request\n"
                         + "(3)\t- Data\n"
@@ -389,7 +389,7 @@ class ErrorSim extends CommonMethods
 
 
                 while (!inputValid) {
-                    System.out.print("Which packet type is being delayed? ");
+                    System.out.print("Which packet type is being invalidated? ");
                     input = reader.nextLine();
                     input = input.toLowerCase();
 
@@ -397,27 +397,22 @@ class ErrorSim extends CommonMethods
                         case "1":
                             inputValid = true;
                             testOpcode = 1;
-                            delayOpcode = 1;
                             break;
                         case "2":
                             inputValid = true;
                             testOpcode = 2;
-                            delayOpcode = 2;
                             break;
                         case "3":
                             inputValid = true;
                             testOpcode = 3;
-                            delayOpcode = 3;
                             break;
                         case "4":
                             inputValid = true;
                             testOpcode = 4;
-                            delayOpcode = 4;
                             break;
                         case "5":
                             inputValid = true;
                             testOpcode = 5;
-                            delayOpcode = 5;
                             break;
                         default:
                             System.out.println("The input is not valid.");
@@ -428,7 +423,7 @@ class ErrorSim extends CommonMethods
                     inputValid = false;
 
                     while (!inputValid) {
-                        System.out.print("What packet/block number would you like to delay? ");
+                        System.out.print("What packet/block number would you like to invalidate? ");
                         input = reader.nextLine();
                         int tempNum = -1;
 
@@ -436,7 +431,7 @@ class ErrorSim extends CommonMethods
                             tempNum = Integer.valueOf(input);
                             if (tempNum > 0) {
                                 inputValid = true;
-                                delayBkNum = tempNum;
+                                testBlockNum = tempNum;
                             }
                         }
                         catch (Exception e) {
@@ -444,41 +439,130 @@ class ErrorSim extends CommonMethods
                         }
                     }
                 }
-
-                //Delay Amount
+                
+            	// illegalField; //chosen field to invalidate: 1 = opcode, 2 = mode (only for RRQ/WRQ), 3 = errorCode (only for errors), 4 = invalidate structure(replace all zeroes) .... May need to add  more
                 inputValid = false;
                 while (!inputValid) {
-                    System.out.print("How long will the packet be delayed (in ms)? ");
+                	System.out.print("\n Fields to Invalidate ! \n");
+                    System.out.print("(1)\t- Op Codet\n"
+                            + "(2)\t- Mode(Only for RRQs and WRQs)t\n"
+                            + "(3)\t- ErrorCode(Only for Errors)\n"
+                            + "(4)\t- Structure\n");
+                    
+                    System.out.print("How would you like to invalidate the packet? ");
                     input = reader.nextLine();
-                    int tempNum = -1;
-
-                    try {
-                        tempNum = Integer.valueOf(input);
-                        if (tempNum > 0) {
-                            inputValid = true;
-                            delay = tempNum;
-                        }
+                    
+                    //check that input is valid for the opcode 
+                    if(input.equals("2") && (testOpcode!=1 || testOpcode!=2)) {
+                    	input="0";
+                    }else if(input.equals("3") && testOpcode!=5) {
+                    	input="0";
                     }
-                    catch (Exception e) {
+                    
+                    switch (input) {
+                    case "1":
+                        inputValid = true;
+                        illegalField = 1;
+                        break;
+                    case "2":
+                        inputValid = true;
+                        illegalField = 2;
+                        break;
+                    case "3":
+                        inputValid = true;
+                        illegalField = 3;
+                        break;
+                    case "4":
+                        inputValid = true;
+                        illegalField = 4;
+                        break;
+                    default:
                         System.out.println("The input is not valid.");
                     }
+                    
                 }
-
+              
                 if (testOpcode == 1)
-                    System.out.println("RRQ will be delayed by " + delay + " ms.\n");
+                    System.out.println("The next RRQ will be invalidated.\n");
                 if (testOpcode == 2)
-                    System.out.println("WRQ will be delayed by " + delay + " ms.\n");
+                    System.out.println("The next WRQ will be invalidated.\n");
                 if (testOpcode == 3)
-                    System.out.println("DATA Packet# " + delayBkNum + " will be delayed by " + delay + " ms.\n");
+                    System.out.println("DATA Packet# " + delayBkNum + " will be invalidated..\n");
                 if (testOpcode == 4)
-                    System.out.println("ACK Packet# " + delayBkNum + " will be delayed by " + delay + " ms.\n");
+                    System.out.println("ACK Packet# " + delayBkNum + " will be invalidated..\n");
                 if (testOpcode == 5)
-                    System.out.println("ERROR will be delayed by " + delay + " ms.\n");
+                    System.out.println("The next ERROR will be invalidated..\n");
             	
             }
             
             if (mode == 5) {//Unknown TID - choose the packet to send
-            	
+            	System.out.print("\n Packet from an Unknown! \n");
+                System.out.print("(1)\t- Read Request\n"
+                        + "(2)\t- Write Request\n"
+                        + "(3)\t- Data\n"
+                        + "(4)\t- Acknowledgement\n"
+                        + "(5)\t- Error\n\n");
+
+
+                while (!inputValid) {
+                    System.out.print("Which packet type is being sent from an unknown TID?  ");
+                    input = reader.nextLine();
+                    input = input.toLowerCase();
+
+                    switch (input) {
+                        case "1":
+                            inputValid = true;
+                            testOpcode = 1;
+                            System.out.println("The next RRQ will be sent from an unknown TID.\n");
+                            break;
+                        case "2":
+                            inputValid = true;
+                            testOpcode = 2;
+                            System.out.println("The next WRQ will be sent from an unknown TID.\n");
+                            break;
+                        case "3":
+                            inputValid = true;
+                            testOpcode = 3;
+                            break;
+                        case "4":
+                            inputValid = true;
+                            testOpcode = 4;
+                            break;
+                        case "5":
+                            inputValid = true;
+                            testOpcode = 5;
+                            System.out.println("The next ERROR will be sent from an unknown TID.\n");
+                            break;
+                        default:
+                            System.out.println("The input is not valid.");
+                    }
+                }
+
+                if (testOpcode == 3 || testOpcode == 4) {
+                    inputValid = false;
+
+                    while (!inputValid) {
+                        System.out.print("What packet/block number would you like to lose? ");
+                        input = reader.nextLine();
+                        int tempNum = -1;
+
+                        try {
+                            tempNum = Integer.valueOf(input);
+                            if (tempNum > 0) {
+                                inputValid = true;
+                                testBlockNum = tempNum;
+                            }
+                        }
+                        catch (Exception e) {
+                            System.out.println("The input is not valid.");
+                        }
+                    }
+                    if (testOpcode == 3)
+                        System.out.println("DATA Packet# " + testBlockNum + " will be sent from an unknown TID.\n");
+                    if (testOpcode == 4)
+                        System.out.println("ACK Packet# " + testBlockNum + " will be sent from an unknown TID.\n");
+
+                }
             }
         }
     }
@@ -647,7 +731,7 @@ class ErrorSim extends CommonMethods
                     }
                     
                     if(isTestPacket) {
-                    	// illegalField; //chosen field to invalidate: 1 = opcode, 2 = mode, 3 = errorCode, 4 = blockNum .... May need to add  more
+                    	// illegalField; //chosen field to invalidate: 1 = opcode, 2 = mode, 3 = errorCode, 4 = Replace all zeroes .... May need to add  more
                     	if (illegalField==1) {
                     		rxData[0]=9;
                     		rxData[1]=9;		
@@ -660,12 +744,13 @@ class ErrorSim extends CommonMethods
                     	}else if(illegalField==3) {
                     		rxData[2]=9;
                     		rxData[3]=9;
-                    	}else if(illegalField==4) {
-                    		rxData[2]=-1;
-                    		rxData[2]=-1;
+                    	}else if(illegalField==4) {//replace all zeroes with ones
+                    		for(int i=0;i<rxData.length;i++){
+                    			if(rxData[i]==0)
+                    				rxData[i]=1;
+                    		}
                     	}
                     	txPacket = new DatagramPacket(rxData, rxData.length);
-                    	outputText(txPacket, direction.OUT, endhost.SERVER, verboseOutput);
                     	resetTestVars();
                     }
                 }
@@ -848,7 +933,7 @@ class ErrorSim extends CommonMethods
                             }
                             
                             if(isTestPacket) {
-                            	// illegalField; //chosen field to invalidate: 1 = opcode, 2 = mode, 3 = errorCode, 4 = blockNum .... May need to add  more
+                            	// illegalField; //chosen field to invalidate: 1 = opcode, 2 = mode, 3 = errorCode, 4 = Replace all zeroes .... May need to add  more
                             	if (illegalField==1) {
                             		rxData[0]=9;
                             		rxData[1]=9;		
@@ -861,9 +946,11 @@ class ErrorSim extends CommonMethods
                             	}else if(illegalField==3) {
                             		rxData[2]=9;
                             		rxData[3]=9;
-                            	}else if(illegalField==4) {
-                            		rxData[2]=-1;
-                            		rxData[2]=-1;
+                            	}else if(illegalField==4) {//replace all zeroes with ones
+                            		for(int i=0;i<rxData.length;i++){
+                            			if(rxData[i]==0)
+                            				rxData[i]=1;
+                            		}
                             	}
                             	txPacket = new DatagramPacket(rxData, rxData.length);
                             	resetTestVars();
