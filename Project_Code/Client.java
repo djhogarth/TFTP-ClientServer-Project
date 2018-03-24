@@ -500,7 +500,7 @@ class Client extends CommonMethods {
             else
                 isValid = false;
 
-            if (isValid && modeIsValid && filenameIsValid)
+            if (isValid && modeIsValid && filenameIsValid && isRequest && isError)
 
                 return true;
 
