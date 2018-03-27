@@ -1,0 +1,7 @@
+Glitches
+
+1. "Unknown transfer ID" error in Client.java (line ~522)
+- After any file transfer, switching to Quiet/Verbose prevents further file transfers.
+- packetID sometimes has a hostname prepended to it
+- expectedID rarely has a hostname prepended to it
+Solution - Strip hostname from this.expectedTID and packetID
