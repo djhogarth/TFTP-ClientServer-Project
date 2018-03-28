@@ -197,7 +197,7 @@ class Client extends CommonMethods {
 						System.out.println("Toggled: Verbose Output");
 						c.verboseOutput = true;
 						try {
-							sendOOB(true);
+							c.sendOOB(true);
 						} catch (Exception e) {
 						}
 						inputValid = true;
@@ -206,14 +206,15 @@ class Client extends CommonMethods {
 						System.out.println("Toggled: Quiet Output");
 						c.verboseOutput = false;
 						try {
-							sendOOB(false);
+							c.sendOOB(false);
 						} catch (Exception e) {
 						}
 						inputValid = true;
 						break;
 					case "ip":
 						System.out.print("Enter Server's IP Address: ");
-						System.out.println("-- Not implemented yet --");
+						input = reader.nextLine();
+						c.errorSimIP=InetAddress.getByName(input);
 						inputValid = true;
 						break;
 					case "b":
@@ -352,7 +353,7 @@ class Client extends CommonMethods {
 	// Used to synchronize parameters between all three programs
 	// Verbose/Quiet output, according to requirements, must be the same across all
 	// running apps
-	public static void sendOOB(boolean verbose) throws Exception {
+	public void sendOOB(boolean verbose) throws Exception {
 		// HEADER ==> OPCODE = 0x99 | BOOLEAN VERBOSE
 
 		byte[] header = new byte[3];
@@ -366,7 +367,7 @@ class Client extends CommonMethods {
 		else
 			header[2] = 0; // quiet is toggled
 
-		DatagramPacket OOBPacket = new DatagramPacket(header, header.length, InetAddress.getLocalHost(), ERRORSIM_PORT);
+		DatagramPacket OOBPacket = new DatagramPacket(header, header.length, this.errorSimIP, ERRORSIM_PORT);
 		DatagramSocket OOBSocket = new DatagramSocket();
 		OOBSocket.send(OOBPacket);
 		OOBSocket.close();
@@ -682,7 +683,7 @@ class Client extends CommonMethods {
 					else {
 						// create and send Ack packet with block # of received packet
 						byte[] sendData = new byte[]{0, 4, receiveData[2], receiveData[3]};
-						txPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getLocalHost(), port);
+						txPacket = new DatagramPacket(sendData, sendData.length, errorSimIP, port);
 						socket.send(txPacket);
 						outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
 
@@ -799,7 +800,7 @@ class Client extends CommonMethods {
 					}
 				}
 
-				txPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getLocalHost(), port);
+				txPacket = new DatagramPacket(sendData, sendData.length, errorSimIP, port);
 				socket.send(txPacket);
 				txPacket = resizePacket(txPacket);
 				outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);

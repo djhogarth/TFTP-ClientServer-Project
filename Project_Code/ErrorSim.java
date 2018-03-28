@@ -721,6 +721,7 @@ class ErrorSim extends CommonMethods {
 		boolean verboseOutput = false;
 		int tempPort = 0;
 		int client_port = 0;
+		InetAddress clientIP;
 
 		clientSocket = new DatagramSocket(CLIENT_PORT);
 		serverSocket = new DatagramSocket();
@@ -739,6 +740,7 @@ class ErrorSim extends CommonMethods {
 				clientSocket.receive(rxPacket);
 				rxPacket = resizePacket(rxPacket);
 				InetSocketAddress temp_add = (InetSocketAddress) rxPacket.getSocketAddress();
+				clientIP=temp_add.getAddress();
 				client_port = temp_add.getPort();
 				
 				if (isRequest(rxPacket))
@@ -755,9 +757,10 @@ class ErrorSim extends CommonMethods {
 						verboseOutput = true;
 				}
 				// ---END OF OUT OF BAND MANAGEMENT---//
-
+				
 				// Send to SERVER listener or last Thread
 				txPacket = rxPacket;
+				txPacket.setAddress(InetAddress.getLocalHost());
 				if (rxData[1] == 1 || rxData[1] == 2 || tempPort == 0) {//send to server if RRQ/WRQ or if there is no previous sender
 					txPacket.setPort(SERVER_PORT);
 				} 	else {
@@ -851,7 +854,7 @@ class ErrorSim extends CommonMethods {
 						// Send to CLIENT
 						txPacket = rxPacket;
 						txPacket.setPort(client_port);
-						txPacket.setAddress(InetAddress.getLocalHost());
+						txPacket.setAddress(clientIP);
 
 						if (mode == 3 && rxData[1] == testOpcode) {
 							if (rxData[1] == 1) {// If RRQ
