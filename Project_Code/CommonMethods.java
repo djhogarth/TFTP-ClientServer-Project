@@ -1,3 +1,12 @@
+/*
+  FILENAME - CommonMethods.java
+  ASSIGNMENT - Final Project - SYSC 3303
+  AUTHOR - GROUP 3 - W18
+  DETAILS - Common functions are stored in this file to reduce redundant code.
+          - Used by Client/ErrorSim/Server
+*/
+
+
 import javax.xml.crypto.Data;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
@@ -24,7 +33,7 @@ public class CommonMethods {
     	errorMap.put("File already exists.", 6);
     	errorMap.put("No such user.", 7);
     }
-    
+
     //Returns the a packet's port number
     public static int getPort(DatagramPacket p)
     {
@@ -73,13 +82,9 @@ public class CommonMethods {
             byte[] data = packet.getData();
 
             if (dir == direction.IN)
-                System.out.println("DIRECTION \t\t= Inbound Packet Data from " + host);
+                System.out.println("DIRECTION \t= Inbound Packet Data from " + host);
             else if (dir == direction.OUT)
-                System.out.println("DIRECTION \t\t= Outbound Packet Data to " + host);
-
-            //For Iteration 3
-            //System.out.println("TIMEOUTS = N/A");
-            //System.out.println("RE-TRANSMISSIONS = N/A");
+                System.out.println("DIRECTION \t= Outbound Packet Data to " + host);
 
             if (dir == direction.IN)
                 System.out.println("INBOUND FROM \t= " + packet.getAddress() + ":" + getPort(packet));
@@ -88,15 +93,15 @@ public class CommonMethods {
 
             //PACKET TYPE OUTPUT
             if (data[0] == 0 && data[1] == 1)
-                System.out.println("OPCODE \t\t\t= READ [0x01]");
+                System.out.println("OPCODE \t\t= READ [0x01]");
             if (data[0] == 0 && data[1] == 2)
-                System.out.println("OPCODE \t\t\t= WRITE [0x02]");
+                System.out.println("OPCODE \t\t= WRITE [0x02]");
             if (data[0] == 0 && data[1] == 3)
-                System.out.println("OPCODE \t\t\t= DATA [0x03]");
+                System.out.println("OPCODE \t\t= DATA [0x03]");
             if (data[0] == 0 && data[1] == 4)
-                System.out.println("OPCODE \t\t\t= ACK [0x04]");
+                System.out.println("OPCODE \t\t= ACK [0x04]");
             if (data[0] == 0 && data[1] == 5)
-                System.out.println("OPCODE \t\t\t= ERROR [0x05]");
+                System.out.println("OPCODE \t\t= ERROR [0x05]");
 
             //REQUEST MODE
             if (data[0] == 0 && (data[1] == 1 || data[1] == 2)) {
@@ -109,12 +114,12 @@ public class CommonMethods {
             if (data[0] == 0 && (data[1] == 1 || data[1] == 2))
             {
                 tempFilename = getFilename(packet);
-                System.out.println("FILENAME \t\t= " + tempFilename);
+                System.out.println("FILENAME \t= " + tempFilename);
             }
 
             if (data[0] == 0 && data[1] == 3)
             {
-                System.out.println("FILENAME \t\t= " + tempFilename);
+                System.out.println("FILENAME \t= " + tempFilename);
 
                 String ascii = new String(data, Charset.forName("UTF-8"));
                 ascii = ascii.substring(4, ascii.length());
@@ -131,22 +136,8 @@ public class CommonMethods {
             {
             	String errorMessage = new String(data, Charset.forName("UTF-8"));
                 errorMessage = errorMessage.substring(4, errorMessage.length());
-            	System.out.println("ERROR CODE \t\t= " + data[3] + " = " + errorMessage);
+            	System.out.println("ERROR CODE \t= " + data[3] + " = " + errorMessage);
             }
-
-            /*
-            ---- DEPRECATED CODE ----
-            //BYTE OUTPUT
-            //Confirm output with - https://www.branah.com/ascii-converter
-            System.out.println("BYTES = ");
-            for (int j = 0; j < data.length; j++) {
-                System.out.print(data[j]);
-                if (j % 1 == 0 && j != 0)
-                    System.out.print(" ");
-                if (j == 0)
-                    System.out.print(" ");
-            }
-            */
         }
         else
         {
@@ -234,7 +225,6 @@ public class CommonMethods {
                 return true;
             }
         }
-
         return false;
     }
 

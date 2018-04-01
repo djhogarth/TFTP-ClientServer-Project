@@ -1,4 +1,3 @@
-
 /*
   FILENAME - ErrorSim.java
   ASSIGNMENT - Final Project - SYSC 3303
@@ -12,10 +11,8 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 class ErrorSim extends CommonMethods {
-	// private static final int CLIENT_PORT = 23;
-	// private static final int SERVER_PORT = 69;
-	private static final int CLIENT_PORT = 9923;
-	private static final int SERVER_PORT = 9969;
+	private static final int CLIENT_PORT = 23;
+	private static final int SERVER_PORT = 69;
 	private static final int DATA_SIZE = 516;
 	private static DatagramPacket rxPacket, txPacket;
 
@@ -532,13 +529,13 @@ class ErrorSim extends CommonMethods {
 			}
 		}
 	}
-	
-	
+
+
 	//A method that simulates errors for the server, takes as input the port of the sender thread and server socket
 	public static boolean simulateServerError(int senderPort,DatagramSocket serverSocket ,boolean verboseOutput) throws Exception {
-		
+
 		byte[] rxData = rxPacket.getData();
-		
+
 		// --- Test Mode 1: Lost Packet ---//
 		if (mode == 1 && rxData[1] == testOpcode) {
 			if (rxData[1] == 1) {// if packet is RRQ
@@ -707,7 +704,7 @@ class ErrorSim extends CommonMethods {
 		}
 		return false;
 	}
-	
+
 	// Waits to receive packet from Client.java
 	// Upon receipt, forwards it to Server.java
 	// Waits to receive packet from Server.java
@@ -742,7 +739,7 @@ class ErrorSim extends CommonMethods {
 				InetSocketAddress temp_add = (InetSocketAddress) rxPacket.getSocketAddress();
 				clientIP=temp_add.getAddress();
 				client_port = temp_add.getPort();
-				
+
 				if (isRequest(rxPacket))
 					lastDataPkt = false;
 
@@ -757,7 +754,7 @@ class ErrorSim extends CommonMethods {
 						verboseOutput = true;
 				}
 				// ---END OF OUT OF BAND MANAGEMENT---//
-				
+
 				// Send to SERVER listener or last Thread
 				txPacket = rxPacket;
 				txPacket.setAddress(InetAddress.getLocalHost());
@@ -766,25 +763,25 @@ class ErrorSim extends CommonMethods {
 				} 	else {
 					txPacket.setPort(tempPort);
 				}
-				
+
 				if(mode != 0)//ERROR SIM to Server
 					simulateServerError(tempPort,serverSocket,verboseOutput);
-				
+
 				if (!isLost) {// Don't send lost packet
 					serverSocket.send(txPacket);
 					outputText(txPacket, direction.OUT, endhost.SERVER, verboseOutput);
-				} 
-				
+				}
+
 				if (!isOOB(txPacket)) {
 					// outputText(txPacket, direction.OUT, endhost.SERVER, verboseOutput);
 				} else {
 					lastDataPkt = true;
 				}
-			
+
 				// --- RECEIVE FROM SERVER ---//
 				if (!lastDataPkt && !isLost) {
 					boolean needPkt = true;
-					
+
 					while (needPkt) {
 						rxPacket = new DatagramPacket(rxData, rxData.length);
 						serverSocket.receive(rxPacket);

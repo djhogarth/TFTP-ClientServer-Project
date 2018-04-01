@@ -21,8 +21,7 @@ import java.io.File;
 class Server extends CommonMethods implements Runnable
 {
 
-    //private static final int ERRORSIM_PORT = 69;
-    private static final int ERRORSIM_PORT = 9969;
+    private static final int ERRORSIM_PORT = 69;
     private static final int DATA_SIZE = 516;
 
     private DatagramSocket socket;
@@ -31,7 +30,7 @@ class Server extends CommonMethods implements Runnable
     private boolean quitSignal = false;
     private boolean verboseOutput = false;
     private InetSocketAddress expectedTID = null;
-	
+
     private String pathname;
     private int fileSize;//file size of written file
 
@@ -79,9 +78,6 @@ class Server extends CommonMethods implements Runnable
 
     //A function that verifies that a packet is a valid TFTP packet
     public synchronized static boolean validatePacket(DatagramPacket packet){
-        //BYTES [9-126] WILL COUNT AS VALID CHARACTERS
-        //BYTE 10 == LF == Line Feed
-        //ANYTHING ELSE IS "INVALID"
         boolean isValid = true;
         boolean isRequest = false;
         boolean isError = false;
@@ -90,7 +86,7 @@ class Server extends CommonMethods implements Runnable
 
         //Counts the number of 0x0 in the packet (size of Vector) and their indexes in the packet (index values in Vector)
         Vector<Integer> hasZero = new Vector<Integer>();
-        
+
         //check opcode
         if (packet.getData()[0] == 0 && (packet.getData()[1] == 1 || packet.getData()[1] == 2)) {
             isRequest = true;
@@ -99,7 +95,7 @@ class Server extends CommonMethods implements Runnable
         }else if(packet.getData()[0] != 0 || (packet.getData()[1] < 1 || packet.getData()[1] > 5)) {
         	isValid = false;
         }
-		 
+
         //check errorcode
         if (isError) {
         	int length = packet.getData().length;
@@ -110,25 +106,24 @@ class Server extends CommonMethods implements Runnable
         		isValid = false;
         	}
         }
-        
-        
+
         //check request
         if (isRequest){
-        	ByteArrayOutputStream mode = new ByteArrayOutputStream(); // to store mode 
-        	int length = packet.getData().length; // 
+        	ByteArrayOutputStream mode = new ByteArrayOutputStream(); // to store mode
+        	int length = packet.getData().length; //
         	byte [] data = packet.getData();
         	int i;
-        	
+
         	//Go until first 0 seperator
         	for (i = 2; data[i] != 0 && i < length; ++i) {
     			// we could get fileName here
     		}
-        	
+
         	//Go until second 0 seperator
         	for (i += 1; data[i] != 0 && i < length; ++i) {
-    			mode.write(data[i]); 
+    			mode.write(data[i]);
     		}
-        	
+
         	//check if mode is valid
         	if (!(mode.toString().toLowerCase().equals("netascii") || mode.toString().toLowerCase().equals("octet"))) {
         		isValid=false;
@@ -138,36 +133,10 @@ class Server extends CommonMethods implements Runnable
         		isValid = false;
         	}
         }
-       
-        // doesnt work
-        /*if (isValid){
-            for (int i = 2; i < packet.getLength(); i++){
-                if (packet.getData()[i] == 0) {
-                    hasZero.addElement(i);
-                }
-            }
-            if (hasZero.size() >= 2){
-                for (int i = 2; i < hasZero.elementAt(0); i++){
-                    if ((packet.getData()[i] <= 8 && packet.getData()[i] != 0) || (packet.getData()[i] >= 127))
-                        filenameIsValid = false;
-                }
-
-                for (int i = hasZero.elementAt(0) + 1; i < hasZero.elementAt(1); i++){
-                    if ((packet.getData()[i] <= 8 && packet.getData()[i] != 0) || (packet.getData()[i] >= 127))
-                        modeIsValid = false;
-                }
-            }
-            else
-                isValid = false;
-            if (isValid && modeIsValid && filenameIsValid && isRequest && isError)
-                return true;
-            else
-                return false;
-        }*/
 
         return isValid;
     }
-    
+
     //A function that writes a file with WRQ attached to its filename, takes a byte array and a filename,
     public static void saveFile(Vector<byte[]> receivedFile, String filename)
     {
@@ -200,7 +169,7 @@ class Server extends CommonMethods implements Runnable
             e.printStackTrace();
         }
     }
-    
+
     //Essentially a pseudo-main method that runs all logic for the threads
     //Two types of threads: LISTENERs and SENDERs
     //Listeners will listen for any packet on port 69
@@ -326,19 +295,19 @@ class Server extends CommonMethods implements Runnable
                 System.exit(1);
         }
     }
-    
+
     //Function takes a packet and returns a corresponding error message
     public synchronized String checkError(DatagramPacket packet)
     {
     	String errorMessage = "No Error";
     	String[] msg = new String[8];
         msg[0] = "Not defined, see error message (if any).";
-        msg[1] = "File not found.";                            // -- Iteration 2
-        msg[2] = "Access violation.";                          // -- Iteration 2
-        msg[3] = "Disk full or allocation exceeded.";          // -- Iteration 2
+        msg[1] = "File not found.";
+        msg[2] = "Access violation.";
+        msg[3] = "Disk full or allocation exceeded.";
         msg[4] = "Illegal TFTP operation.";
         msg[5] = "Unknown transfer ID.";
-        msg[6] = "File already exists.";                       // -- Iteration 2
+        msg[6] = "File already exists.";
         msg[7] = "No such user.";
 
         byte[] data = packet.getData();
@@ -352,17 +321,14 @@ class Server extends CommonMethods implements Runnable
         if (data[0] == 0 && data[1] == 1)//RRQ
         {
             f = new File("./ServerFiles/" + getFilename(packet));
-            //System.out.print("./ServerFiles/" + getFilename(packet));
+
             if(f.exists() && !f.isDirectory()) {
-                //System.out.println("File Exists!");
             	if (f.canRead()==false) {
 	            	errorMessage = msg[2];
-	            	//System.out.println(msg[2]);   //access violation.
 	            }
             }
             else
             {
-                //System.out.println(msg[1]); //File not found.
                 errorMessage = msg[1];
             }
         }
@@ -374,18 +340,15 @@ class Server extends CommonMethods implements Runnable
         {
         	f = new File("./ServerFiles/" + getFilename(packet));
             if(f.exists() && !f.isDirectory()) {
-            	//System.out.println(msg[6]); //File already exists.
                 errorMessage = msg[6];
             }
 
             f = new File("./ServerFiles/");
             if (!f.canWrite()) {
             	errorMessage = msg[2];
-            	//System.out.println(msg[2]);   //access violation.
             }
 
 		    if(diskSpace==0) {
-		    	//System.out.println(msg[3]); //Disk full or allocation exceeded
 		    	errorMessage = msg[3];
 		    }
         }
@@ -395,24 +358,23 @@ class Server extends CommonMethods implements Runnable
         {
 
 		    if(diskSpace==0 || diskSpace < fileSize) {//size of file being written
-		    	//System.out.println(msg[3]); //Disk full or allocation exceeded
 		    	errorMessage = msg[3];
 		    }
         }
-		
+
         //Error 05 Unknown TID
 		InetSocketAddress packetTID = (InetSocketAddress) packet.getSocketAddress();
         if (this.expectedTID != null && !this.expectedTID.equals(packetTID)) {
         	errorMessage = msg[5];
         }
-        
+
         if(!validatePacket(packet)) {
         	errorMessage = msg[4];
         }
 
         return errorMessage;
     }
-    
+
     //A function that sends and initiates a RRQ or WRQ based on the received packet
     //packet = packet received from ErrorSim
     //socket = socket ErrorSim used to send the packet to Server
@@ -432,7 +394,6 @@ class Server extends CommonMethods implements Runnable
             try {
                 readRequest(port, filename);
             } catch (Exception e) {
-            	//e.printStackTrace();  
             }
         }
         else  //IF PACKET IS WRQ or anything else
@@ -440,11 +401,10 @@ class Server extends CommonMethods implements Runnable
             try {
                 writeRequest(port, filename);
             } catch (Exception e) {
-            	//e.printStackTrace();
             }
         }
     }
-    
+
     /*
 	    WRQ FLOW
 	    Client -> WRQ -> Server
@@ -453,7 +413,7 @@ class Server extends CommonMethods implements Runnable
 	    Server -> ACK BLK 1 -> Client
 	    Repeats until Client sends last DATA pkt, Server sends a final ACK
     */
-    
+
   //Takes a packet with a file error and sends an ERROR packet back
     public void sendError(DatagramPacket packet) throws Exception
     {
@@ -488,7 +448,7 @@ class Server extends CommonMethods implements Runnable
         txPacket = resizePacket(txPacket);
         socket.send(txPacket);
         outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
-        
+
         if (!error.equals("Unknown transfer ID.")) { //Do not close socket if error 5 (Unknown Transfer ID) occurs
         	System.out.println("ERROR Complete: TERMINATING SOCKET");
         	socket.close();
@@ -508,7 +468,7 @@ class Server extends CommonMethods implements Runnable
     public synchronized void writeRequest(int port,String filename) throws Exception {
         boolean isValidFile = true;
         Vector<byte[]> fileVector = new Vector<byte[]>();
-        
+
         DatagramPacket txPacket = null;
         byte[] sendData = new byte[]{0,4,0,0};//block 0 ACK packet
         boolean gotResponse = false;
@@ -524,7 +484,7 @@ class Server extends CommonMethods implements Runnable
         }
 
         while(true) {//Loop to send ACK and receive DATA until DATA<512 bytes
-        
+
         	//send ACK packet to Client
         	if(!isUnknown) {
 	            txPacket = new DatagramPacket(sendData,sendData.length,InetAddress.getLocalHost(),port);
@@ -532,20 +492,20 @@ class Server extends CommonMethods implements Runnable
 	            socket.send(txPacket);
 	            outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
         	}
-        	
+
             if(isValidFile) {
         		//receive DATA packet from Client
 	            byte[] receiveData = new byte[DATA_SIZE];
 	            DatagramPacket rxPacket = new DatagramPacket(receiveData, receiveData.length);
                 gotResponse = false;
-            
+
                 while (!gotResponse) {// Loop receive from server until either Valid DATA or ERROR is received
 	                isUnknown = false;
                     socket.setSoTimeout(5000);
                     try {
                         socket.receive(rxPacket);
                         receiveData = rxPacket.getData();
-                        if(receiveData[1]==5 || (receiveData[1] == 3 && (receiveData[2] == blockNumToBytes(dataCounter)[0] && receiveData[3] == blockNumToBytes(dataCounter)[1]) ) 
+                        if(receiveData[1]==5 || (receiveData[1] == 3 && (receiveData[2] == blockNumToBytes(dataCounter)[0] && receiveData[3] == blockNumToBytes(dataCounter)[1]) )
                         		|| !checkError(rxPacket).equals("No Error")){
     						gotResponse = true;
     						dataCounter++;
@@ -559,10 +519,6 @@ class Server extends CommonMethods implements Runnable
                         }
 
                         numResentPkt++;
-                        //Don't resend acks
-                        //System.out.println("\n*** No response received from Client... Re-sending packet. ***\n");
-                        //socket.send(txPacket);
-                        //outputText(txPacket, direction.OUT, endhost.ERRORSIM, verboseOutput);
                         socket.setSoTimeout(0); //infinite socket wait time
                         gotResponse = false;
                     }
@@ -607,7 +563,7 @@ class Server extends CommonMethods implements Runnable
         System.out.println("WRQ Complete: TERMINATING SOCKET");
         socket.close();
     }
-    
+
     //A function that implements the RRQ of a TFTP server, takes as input the client's port and file name of requested file
     public synchronized void readRequest(int port,String filename) throws Exception {
 

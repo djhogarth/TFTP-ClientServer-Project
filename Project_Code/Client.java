@@ -25,8 +25,7 @@ import java.util.Vector;
 
 class Client extends CommonMethods {
 
-	// private static final int ERRORSIM_PORT = 23;
-	private static final int ERRORSIM_PORT = 9923;
+	private static final int ERRORSIM_PORT = 23;
 	private static final int DATA_SIZE = 516;
 	public InetAddress clientIP, errorSimIP, serverIP;
 	public String pathname, filename, operation, quit;
@@ -58,8 +57,6 @@ class Client extends CommonMethods {
 
 	// Main -> userInput -> newDatagram -> makeRequest -> send
 	public static void main(String args[]) throws Exception {
-
-		// Thread.sleep(3000); //Allows INTHOST and SERVER to load first
 		System.out.println("TFTP Client is running.\n");
 		Client c = new Client();
 		userInput(c);
@@ -111,7 +108,8 @@ class Client extends CommonMethods {
 	public static void userInput(Client c) throws IOException {
 
 		boolean startTransfer = false;
-		boolean showMainMenu = true;
+		boolean firstQuestion = true;
+		boolean showMainMenu = false;
 		boolean showOptionsMenu = false;
 		boolean inputValid = false;
 		boolean firstTime = true;
@@ -119,14 +117,45 @@ class Client extends CommonMethods {
 		String input = "";
 		String errorMessage;
 
+		String firstQ = "Is the server running on a different computer? (y/n) ";
+
 		String mainMenu = "Commands:\n(s)tart   - Start a file transfer"
 				+ "\n(o)ptions - Change parameters for this application"
 				+ "\n(q)uit    - Ends the program after all file transfers are completed" + "\n";
 
-		String optionsMenu = "\nOptions:\n(pwd)       - Print Working Directory" + "\n(cd)        - Change Directory"
-				+ "\n(dir)       - List files in working directory" + "\n(v)erbose   - Verbose Output"
+		String optionsMenu = "\nOptions:\n(pwd)       - Print Working Directory"
+				+ "\n(v)erbose   - Verbose Output"
 				+ "\n(q)uiet     - Quiet Output" + "\n(ip)        - Change the server's IP address"
 				+ "\n(b)ack      - Back to main menu" + "\n";
+
+		while (firstQuestion)
+		{
+			while (!inputValid)
+			{
+				System.out.println(firstQ);
+
+				input = reader.nextLine();
+				input = input.toLowerCase();
+
+				switch (input) {
+				case "y":
+					System.out.println("What is the server's IP? ");
+					input = reader.nextLine();
+					c.errorSimIP=InetAddress.getByName(input);
+					firstQuestion = false;
+					inputValid = true;
+					showMainMenu = true;
+					break;
+				case "n":
+					firstQuestion = false;
+					inputValid = true;
+					showMainMenu = true;
+					break;
+				default:
+					System.out.println("The input is not valid.");
+				}
+			}
+		}
 
 		while (true) {
 			while (showMainMenu) {
@@ -179,18 +208,6 @@ class Client extends CommonMethods {
 					switch (input) {
 					case "pwd":
 						System.out.println("Working Directory = " + c.pathname);
-						inputValid = true;
-						break;
-					case "cd":
-						System.out.print("New directory path: ");
-						System.out.println("-- Not implemented yet --");
-						// System.out.print("Enter full file path: ");
-						// c.pathname = reader.nextLine();
-						inputValid = true;
-						break;
-					case "dir":
-						System.out.print("Displaying contents of " + c.pathname + ":");
-						System.out.println("-- Not implemented yet --");
 						inputValid = true;
 						break;
 					case "v":
@@ -260,7 +277,7 @@ class Client extends CommonMethods {
 					System.out.print("Is it a (r)ead or (w)rite?: ");
 					input = reader.nextLine();
 					c.operation = input;
-					
+
 					if ((c.operation).equals("write") || (c.operation).equals("w")) {
 						c.txPacket = newDatagram(c.errorSimIP, OPCodes.WRITE, c.filename);
 						errorMessage = c.checkError(c.txPacket);
@@ -282,7 +299,7 @@ class Client extends CommonMethods {
 						}
 					}
 					if ((c.operation).equals("read") || c.operation.equals("r")) {
-						c.txPacket = newDatagram(c.errorSimIP, OPCodes.READ, c.filename); 
+						c.txPacket = newDatagram(c.errorSimIP, OPCodes.READ, c.filename);
 						errorMessage = c.checkError(c.txPacket);
 						if(errorMessage =="No Error") {
 							System.out.println("\n--Reading " + c.filename + " from Server.--\n");
@@ -290,13 +307,13 @@ class Client extends CommonMethods {
 								c.socket.send(c.txPacket);
 								outputText(c.txPacket, direction.OUT, endhost.ERRORSIM, c.verboseOutput);
 								c.receivedFile = c.readRequest(c.txPacket);
-								
-	
+
+
 								// CHECK ERRORS HERE
 								if (c.receivedFile.size() != 0) {
 									saveFile(c.receivedFile, c.filename, c);
 								}
-	
+
 							} catch (Exception e) {
 							}
 						}else {
@@ -307,7 +324,7 @@ class Client extends CommonMethods {
 			}
 		}
 	}
-	
+
 	// A function that takes a vector of any size and writes its bytes to a file
 	public static void saveFile(Vector<byte[]> receivedFile, String filename, Client c) {
 		byte[] tempArray;
@@ -319,7 +336,7 @@ class Client extends CommonMethods {
 
 		tempArray = new byte[charCount];
 
-		String path = c.pathname; // "./"
+		String path = c.pathname;
 		String outputName = filename;
 
 		int tempCount = 0;
@@ -338,7 +355,7 @@ class Client extends CommonMethods {
 			e.printStackTrace();
 		}
 	}
-	
+
 	// A function to create a new Datagram
 	// Future updates to this code will implement the ability to create other types
 	// of TFTP packets
@@ -372,12 +389,9 @@ class Client extends CommonMethods {
 		OOBSocket.send(OOBPacket);
 		OOBSocket.close();
 	}
-	
+
     //A function that verifies that a packet is a valid TFTP packet
 	 public synchronized static boolean validatePacket(DatagramPacket packet){
-        //BYTES [9-126] WILL COUNT AS VALID CHARACTERS
-        //BYTE 10 == LF == Line Feed
-        //ANYTHING ELSE IS "INVALID"
         boolean isValid = true;
         boolean isRequest = false;
         boolean isError = false;
@@ -386,7 +400,7 @@ class Client extends CommonMethods {
 
         //Counts the number of 0x0 in the packet (size of Vector) and their indexes in the packet (index values in Vector)
         Vector<Integer> hasZero = new Vector<Integer>();
-        
+
         //check opcode
         if (packet.getData()[0] == 0 && (packet.getData()[1] == 1 || packet.getData()[1] == 2)) {
             isRequest = true;
@@ -395,7 +409,7 @@ class Client extends CommonMethods {
         }else if(packet.getData()[0] != 0 && (packet.getData()[1] < 1 || packet.getData()[1] > 5)) {
         	isValid = false;
         }
-		 
+
         //check errorcode
         if (isError) {
         	int length = packet.getData().length;
@@ -406,25 +420,24 @@ class Client extends CommonMethods {
         		isValid = false;
         	}
         }
-        
-        
+
         //check request
         if (isRequest){
-        	ByteArrayOutputStream mode = new ByteArrayOutputStream(); // to store mode 
-        	int length = packet.getData().length; // 
+        	ByteArrayOutputStream mode = new ByteArrayOutputStream(); // to store mode
+        	int length = packet.getData().length; //
         	byte [] data = packet.getData();
         	int i;
-        	
+
         	//Go until first 0 seperator
         	for (i = 2; data[i] != 0 && i < length; ++i) {
     			// we could get fileName here
     		}
-        	
+
         	//Go until second 0 seperator
         	for (i += 1; data[i] != 0 && i < length; ++i) {
-    			mode.write(data[i]); 
+    			mode.write(data[i]);
     		}
-        	
+
         	//check if mode is valid
         	if (!(mode.toString().toLowerCase().equals("netascii") || mode.toString().toLowerCase().equals("octet"))) {
         		isValid=false;
@@ -434,32 +447,6 @@ class Client extends CommonMethods {
         		isValid = false;
         	}
         }
-       
-        // doesnt work
-        /*if (isValid){
-            for (int i = 2; i < packet.getLength(); i++){
-                if (packet.getData()[i] == 0) {
-                    hasZero.addElement(i);
-                }
-            }
-            if (hasZero.size() >= 2){
-                for (int i = 2; i < hasZero.elementAt(0); i++){
-                    if ((packet.getData()[i] <= 8 && packet.getData()[i] != 0) || (packet.getData()[i] >= 127))
-                        filenameIsValid = false;
-                }
-
-                for (int i = hasZero.elementAt(0) + 1; i < hasZero.elementAt(1); i++){
-                    if ((packet.getData()[i] <= 8 && packet.getData()[i] != 0) || (packet.getData()[i] >= 127))
-                        modeIsValid = false;
-                }
-            }
-            else
-                isValid = false;
-            if (isValid && modeIsValid && filenameIsValid && isRequest && isError)
-                return true;
-            else
-                return false;
-        }*/
 
         return isValid;
     }
@@ -516,7 +503,7 @@ class Client extends CommonMethods {
 				errorMessage = msg[3];
 			}
 		}
-		
+
 		//Error 5 can occur on any response packet
 		InetSocketAddress packetTID = (InetSocketAddress) packet.getSocketAddress();
         if (this.expectedTID != null && !this.expectedTID.equals(packetTID)) {
@@ -533,7 +520,7 @@ class Client extends CommonMethods {
 					errorMessage = ascii;
 			}
 		}
-		
+
 		if(!validatePacket(packet)){
 			errorMessage = msg[4];
 		}
@@ -619,7 +606,6 @@ class Client extends CommonMethods {
 			// receive and create DATA
 
 			byte[] receiveData = new byte[DATA_SIZE];
-			//byte[] sendData = txPacket.getData();
 
 			rxPacket = new DatagramPacket(receiveData, receiveData.length);
 			isValidPkt = false;
@@ -631,8 +617,7 @@ class Client extends CommonMethods {
 					socket.receive(rxPacket);
 					receiveData = rxPacket.getData();
 
-					//if(receiveData[1]==5 || (receiveData[1] == 3 && receiveData[2] + receiveData[3] == dataCounter)){
-					if(receiveData[1]==5 || (receiveData[1] == 3 && (receiveData[2] == blockNumToBytes(dataCounter)[0] && receiveData[3] == blockNumToBytes(dataCounter)[1]) 
+					if(receiveData[1]==5 || (receiveData[1] == 3 && (receiveData[2] == blockNumToBytes(dataCounter)[0] && receiveData[3] == blockNumToBytes(dataCounter)[1])
 							|| !checkError(rxPacket).equals("No Error")) ){
 						gotResponse = true;
 						isValidPkt = true;
@@ -679,7 +664,7 @@ class Client extends CommonMethods {
 					// bytes
 					if (receiveData[1] != 3)
 						isValidPkt = false;
-						
+
 					else {
 						// create and send Ack packet with block # of received packet
 						byte[] sendData = new byte[]{0, 4, receiveData[2], receiveData[3]};
@@ -754,13 +739,12 @@ class Client extends CommonMethods {
 			}
 
 			if (gotResponse) {
-				//System.out.println("port = " + getPort(rxPacket));
 				rxPacket = resizePacket(rxPacket);
 				if (expectedTID == null) {
 					expectedTID = (InetSocketAddress) rxPacket.getSocketAddress();
 				}
 				outputText(rxPacket, direction.IN, endhost.ERRORSIM, verboseOutput);
-				
+
 				if (receiveData[1] == 5) return; //Stop write if it receives an error
 				if (!checkError(rxPacket).equals("No Error")) {//check for error from server
 					sendError(rxPacket);
