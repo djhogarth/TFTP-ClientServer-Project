@@ -599,7 +599,8 @@ class Client extends CommonMethods {
 		int numResentPkt = 0;
 		boolean gotResponse = false;
 		int dataCounter = 1;
-
+		expectedTID= new InetSocketAddress(errorSimIP,ERRORSIM_PORT);
+		
 		Vector<byte[]> tempVector = new Vector<byte[]>();
 
 		while (isValidPkt) {// Loop to receive DATA and send ACK until received DATA<512 bytes
@@ -617,8 +618,8 @@ class Client extends CommonMethods {
 					socket.receive(rxPacket);
 					receiveData = rxPacket.getData();
 
-					if(receiveData[1]==5 || (receiveData[1] == 3 && (receiveData[2] == blockNumToBytes(dataCounter)[0] && receiveData[3] == blockNumToBytes(dataCounter)[1])
-							|| !checkError(rxPacket).equals("No Error")) ){
+					if(receiveData[1]==5 || (receiveData[1] == 3 && (receiveData[2] == blockNumToBytes(dataCounter)[0] && receiveData[3] == blockNumToBytes(dataCounter)[1]))
+							|| !checkError(rxPacket).equals("No Error")){
 						gotResponse = true;
 						isValidPkt = true;
 						dataCounter++;
@@ -704,7 +705,7 @@ class Client extends CommonMethods {
 		byte[] sendData = new byte[] {0,0,0,0};
 		boolean gotResponse = false; //flag to determine if a response was received from the Server
 		int numResentPkt = 0;
-		String errorMsg = null;
+		expectedTID= new InetSocketAddress(errorSimIP,ERRORSIM_PORT);
 
 		while (true) {// Loop to receive ACK and send DATA until sent DATA<512 bytes
 			// create and receive ACK
@@ -719,7 +720,7 @@ class Client extends CommonMethods {
 					socket.receive(rxPacket);
 					receiveData = rxPacket.getData();
 
-					if(receiveData[1]==5 || (sendData[2]==receiveData[2] && sendData[3]==receiveData[3] || !checkError(rxPacket).equals("No Error")))
+					if(receiveData[1]==5 || (sendData[2]==receiveData[2] && sendData[3]==receiveData[3] )|| !checkError(rxPacket).equals("No Error"))
 						gotResponse = true;
 				}
 				catch (SocketTimeoutException ste)

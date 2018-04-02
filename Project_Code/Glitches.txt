@@ -6,4 +6,12 @@ Glitches
 - expectedID rarely has a hostname prepended to it
 Solution - Strip hostname from this.expectedTID and packetID
 
-2. ErrorSim receives OOB management packets and displays a notification (calls outputText)
+Fixed - Client expectedTID is set to Errorsim on any request, hostname are still output
+
+2. ErrorSim receives OOB management packets and displays a notification (calls outputText) - fixed
+
+3. MAJOR - "Unknown transfer ID" packet not working when testSocket has to send to Client
+	    Client never receives unknown tid packet 
+	    so Data on read, Ack on write, Error from Server dont work for that error
+- This works normally when client is on the same computer as errorsim and server
+- Possible to workaround in demo otherwise im not sure how to fix this

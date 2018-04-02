@@ -769,11 +769,11 @@ class ErrorSim extends CommonMethods {
 
 				if (!isLost) {// Don't send lost packet
 					serverSocket.send(txPacket);
-					outputText(txPacket, direction.OUT, endhost.SERVER, verboseOutput);
 				}
 
 				if (!isOOB(txPacket)) {
-					// outputText(txPacket, direction.OUT, endhost.SERVER, verboseOutput);
+					if(!isLost)
+						outputText(txPacket, direction.OUT, endhost.SERVER, verboseOutput);
 				} else {
 					lastDataPkt = true;
 				}
@@ -850,8 +850,8 @@ class ErrorSim extends CommonMethods {
 
 						// Send to CLIENT
 						txPacket = rxPacket;
-						txPacket.setPort(client_port);
 						txPacket.setAddress(clientIP);
+						txPacket.setPort(client_port);
 
 						if (mode == 3 && rxData[1] == testOpcode) {
 							if (rxData[1] == 1) {// If RRQ
