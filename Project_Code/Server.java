@@ -10,6 +10,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.*;
 import java.util.Vector;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.Path;
@@ -356,12 +357,22 @@ class Server extends CommonMethods implements Runnable
         //Not sure what to check here
         if (data[0] == 0 && data[1] == 3)//DATA
         {
-
 		    if(diskSpace==0 || diskSpace < fileSize) {//size of file being written
 		    	errorMessage = msg[3];
 		    }
         }
+        
+        // If we receive an Error Packet
+ 		if (data[0] == 0 && data[1] == 5) {
+ 			String ascii = new String(data, Charset.forName("UTF-8"));
+ 			ascii = ascii.substring(4, ascii.length() - 1);
 
+ 			for (int i = 0; i < msg.length; i++) {
+ 				if (ascii.equals(msg[i]))
+ 					errorMessage = ascii;
+ 			}
+ 		}
+     		
         //Error 05 Unknown TID
 		InetSocketAddress packetTID = (InetSocketAddress) packet.getSocketAddress();
         if (this.expectedTID != null && !this.expectedTID.equals(packetTID)) {
@@ -545,6 +556,8 @@ class Server extends CommonMethods implements Runnable
 	            fileSize=fileVector.size();
 	            errorMsg = checkError(rxPacket);
 	            if (!errorMsg.equals("No Error")) {//check received packet
+					if (receiveData[1]==5 && !(errorMsg.equals("Unknown transfer ID.") && errorMsg.equals("Illegal TFTP operation.")))//STOP if received valid ERROR
+		            	return;
 	            	sendError(rxPacket);
 	            	if (errorMsg.equals("Unknown transfer ID.")) {
 	            		isUnknown = true;
@@ -554,8 +567,7 @@ class Server extends CommonMethods implements Runnable
 	            		return;
 	            	}
 	            }
-	            if (receiveData[1]==5)//STOP if received ERROR
-	            	return;
+	            
             }
             else break;
         }
@@ -657,6 +669,8 @@ class Server extends CommonMethods implements Runnable
                 outputText(rxPacket, direction.IN, endhost.ERRORSIM, verboseOutput);
                 errorMsg = checkError(rxPacket);
 	            if (!errorMsg.equals("No Error")) {//check received packet
+					if (receiveData[1]==5 && !(errorMsg.equals("Unknown transfer ID.") && errorMsg.equals("Illegal TFTP operation.")))//STOP if received valid ERROR
+						return;
 	            	sendError(rxPacket);
 	            	if (!errorMsg.equals("Unknown transfer ID.")) {
 	            		return;

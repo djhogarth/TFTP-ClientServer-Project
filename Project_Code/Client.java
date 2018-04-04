@@ -464,16 +464,15 @@ class Client extends CommonMethods {
 		msg[6] = "File already exists."; // -- Iteration 2 -Done in user input RRQ
 		msg[7] = "No such user.";
 
+		File f;
 		byte[] data = packet.getData();
-
 		File path = new File(pathname);
 		long diskSpace = path.getUsableSpace();// returns free space on path in bytes
-		File f;
-		f = new File(pathname + getFilename(packet));
 
 		// Can do error 3 (Disk full or allocation exceeded.)
 		// Can do error 6 (file already exists)
 		if (data[0] == 0 && data[1] == 1) {//RRQ
+			f = new File(pathname + getFilename(packet));
 			if (diskSpace == 0) {
 				errorMessage = msg[3];
 			}
@@ -485,6 +484,7 @@ class Client extends CommonMethods {
 		// Can do error 1 (file not found)
 		// Can do error 2 (access violation)
 		if (data[0] == 0 && data[1] == 2) {//WRQ
+			f = new File(pathname + getFilename(packet));
 			if (f.exists() && !f.isDirectory()) {
 				if (!f.isAbsolute()) {
 	            	errorMessage = msg[2];
@@ -503,13 +503,7 @@ class Client extends CommonMethods {
 				errorMessage = msg[3];
 			}
 		}
-
-		//Error 5 can occur on any response packet
-		InetSocketAddress packetTID = (InetSocketAddress) packet.getSocketAddress();
-        if (this.expectedTID != null && !this.expectedTID.equals(packetTID)) {
-        	errorMessage = msg[5];
-        }
-
+		
 		// If we receive an Error Packet
 		if (data[0] == 0 && data[1] == 5) {
 			String ascii = new String(data, Charset.forName("UTF-8"));
@@ -520,6 +514,12 @@ class Client extends CommonMethods {
 					errorMessage = ascii;
 			}
 		}
+		
+		//Error 5 can occur on any response packet
+		InetSocketAddress packetTID = (InetSocketAddress) packet.getSocketAddress();
+        if (this.expectedTID != null && !this.expectedTID.equals(packetTID)) {
+        	errorMessage = msg[5];
+        }
 
 		if(!validatePacket(packet)){
 			errorMessage = msg[4];
@@ -677,7 +677,7 @@ class Client extends CommonMethods {
 							isValidPkt = false;
 					}
 				} else {
-					if (receiveData[1]==5)//STOP if received ERROR
+					if (receiveData[1]==5 && !(error.equals("Unknown transfer ID.") && error.equals("Illegal TFTP operation.")))//STOP if received valid ERROR
 		            	return tempVector;
 					sendError(rxPacket);
 					if (error.equals("Unknown transfer ID.")) {
@@ -745,9 +745,11 @@ class Client extends CommonMethods {
 					expectedTID = (InetSocketAddress) rxPacket.getSocketAddress();
 				}
 				outputText(rxPacket, direction.IN, endhost.ERRORSIM, verboseOutput);
-
-				if (receiveData[1] == 5) return; //Stop write if it receives an error
-				if (!checkError(rxPacket).equals("No Error")) {//check for error from server
+				
+				String error = checkError(rxPacket);
+				if (!error.equals("No Error")) {//check for error from server
+					if (receiveData[1]==5 && !(error.equals("Unknown transfer ID.") && error.equals("Illegal TFTP operation.")))//STOP if received valid ERROR
+						return;
 					sendError(rxPacket);
 					if (!checkError(rxPacket).equals("Unknown transfer ID.")) {
 	            		return;

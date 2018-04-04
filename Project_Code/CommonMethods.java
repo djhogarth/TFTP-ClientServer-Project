@@ -128,7 +128,7 @@ public class CommonMethods {
 
             if (data[0] == 0 && (data[1] == 3 || data[1] == 4))
             {
-                String blockNum = Integer.toString(data[2]) + Integer.toString(data[3]);
+                int blockNum = ((data[2] & 0xff) << 8) | (data[3] & 0xff);
                 System.out.println("BLOCK NUMBER \t= " + blockNum);
             }
 
@@ -205,7 +205,7 @@ public class CommonMethods {
 
         //Extract filename from packet
         int i=2;
-        while(data[i]!=0) {
+        while(i<data.length && data[i]!=0) {
             i++;
         }
         String filename = new String(Arrays.copyOfRange(data, 2, i) , Charset.forName("UTF-8"));
